@@ -1,5 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
-
+from pydantic import BaseModel, Field, EmailStr, model_validator
 
 class UserCreatePayload(BaseModel):
     name: str = Field(
@@ -29,6 +28,13 @@ class UserCreatePayload(BaseModel):
         max_length=50,
         description="Confirm password"
     )
+    
+    @model_validator(mode="after")
+    def validate_passwords(cls, values):
+        if values.password != values.confirm_password:
+            raise ValueError("Passwords do not match")
+        return values
+
 
 
 class UserCreateResponse(BaseModel):
