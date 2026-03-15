@@ -6,7 +6,7 @@ def verify_token(request: Request):
     token = None
 
     # 1. Check cookie first
-    token = request.cookies.get("access_token")
+    token = request.cookies.get("access-token")
 
     # 2. If not in cookie, check Authorization header
     if not token:

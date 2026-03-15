@@ -48,6 +48,6 @@ def login_user(
         message="Login successful",
         data={
             "email": user.email,
-            "accessToken": access_token
+            "access-token": access_token
         }
     )

@@ -37,14 +37,6 @@ class UserCreatePayload(BaseModel):
 
 
 
-class UserCreateResponse(BaseModel):
-    id: int
-    name: str
-    email: EmailStr
-
-    class Config:
-        from_attributes = True
-
 class UserLoginPayload(BaseModel):
     email: EmailStr = Field(
         ...,
@@ -59,11 +51,4 @@ class UserLoginPayload(BaseModel):
         description="Password"
     )
 
-class UserLoginResponse(BaseModel):
-    email: EmailStr = Field(
-        ...,
-        description="User email address",
-        example="himanshu@example.com"
-    )
-    accessToken:str
-    
+
