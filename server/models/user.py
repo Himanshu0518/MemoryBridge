@@ -11,4 +11,4 @@ class User(Base):
     age = Column(Integer, nullable=True)
 
     def __repr__(self):
-        return f"<User(name={self.name}, email={self.email}, age={self.age})>"
+        return f"<User(name={self.name}, email={self.email}, age={self.age})>, password={self.password}"
