@@ -5,6 +5,8 @@ from server.services.user import createUser, loginUser
 from server.config.db import get_db
 from server.schemas.user import UserCreatePayload, UserLoginPayload
 from server.core.api_response import ApiResponse
+from server.services.patient import createPatient
+
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -51,3 +53,4 @@ def login_user(
             "access-token": access_token
         }
     )
+

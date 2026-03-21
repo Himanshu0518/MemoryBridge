@@ -5,7 +5,7 @@ from server.config.env import DATABASE_URL
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    # connect_args={"check_same_thread": False}
 )
 
 SessionLocal = sessionmaker(
