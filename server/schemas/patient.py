@@ -1,23 +1,27 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
 
-class CreatePatientRequest(BaseModel):
-    """
-    Payload used when caregiver creates a new patient.
-    """
+# ── Patient schemas ────────────────────────────────────────────────────────────
 
-    name: str
-    age: Optional[int] = None
-    diagnosis_level: Optional[str] = None
+class CreatePatientRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, example="Ramesh Kumar")
+    age: Optional[int] = Field(None, ge=0, le=120, example=72)
+    diagnosis_level: Optional[str] = Field(
+        None,
+        example="moderate",
+        description="mild | moderate | severe"
+    )
+
+
+class UpdatePatientRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    age: Optional[int] = Field(None, ge=0, le=120)
+    diagnosis_level: Optional[str] = Field(None, example="severe")
 
 
 class PatientResponse(BaseModel):
-    """
-    Response schema for returning patient data.
-    """
-
     id: int
     owner_id: int
     name: str
@@ -25,6 +29,33 @@ class PatientResponse(BaseModel):
     diagnosis_level: Optional[str]
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ── Person schemas ─────────────────────────────────────────────────────────────
+
+class CreatePersonRequest(BaseModel):
+    name: Optional[str] = Field(None, example="Rahul Singh")
+    relation: Optional[str] = Field(None, example="son")
+    is_known: bool = Field(True, example=True)
+
+
+class UpdatePersonRequest(BaseModel):
+    name: Optional[str] = Field(None, example="Rahul Singh")
+    relation: Optional[str] = Field(None, example="son")
+    is_known: Optional[bool] = None
+
+
+class PersonResponse(BaseModel):
+    id: int
+    patient_id: int
+    name: Optional[str]
+    relation: Optional[str]
+    is_known: bool
+    first_seen: datetime
+    last_seen: datetime
 
     class Config:
         from_attributes = True
