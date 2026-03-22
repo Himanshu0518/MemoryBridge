@@ -51,6 +51,8 @@ def loginUser(payload: UserLoginPayload, db: Session):
 
     data = {
         "sub": existing_user.email,
+        "user_id": existing_user.id,
+        "role": existing_user.role,
         "exp": access_token_expires
     }
 

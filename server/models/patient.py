@@ -45,4 +45,4 @@ class Patient(Base):
     )
 
     def __repr__(self):
-        return f"<Patient(name={self.name}, user_id={self.user_id})>"
+        return f"<Patient(name={self.name}, user_id={self.owner_id})>"

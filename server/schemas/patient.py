@@ -8,7 +8,6 @@ class CreatePatientRequest(BaseModel):
     Payload used when caregiver creates a new patient.
     """
 
-    owner_id: int
     name: str
     age: Optional[int] = None
     diagnosis_level: Optional[str] = None

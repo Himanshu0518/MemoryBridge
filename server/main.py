@@ -10,6 +10,7 @@ from server.models import Conversation, Transcript, Summary
 # Routers
 from server.routers.user import router as user_router
 from server.routers.recognition import router as recognition_router
+from server.routers.patient import router as patient_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,3 +20,4 @@ app.add_exception_handler(ApiError, api_error_handler)
 
 app.include_router(user_router)
 app.include_router(recognition_router)
+app.include_router(patient_router)

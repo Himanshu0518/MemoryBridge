@@ -3,15 +3,15 @@ from server.models.patient import Patient
 from server.schemas.patient import CreatePatientRequest
 
 
-def createPatient(db: Session, payload: CreatePatientRequest) -> Patient:
+def createPatient(db: Session, payload: CreatePatientRequest, owner_id: int) -> Patient:
     """
     Create a new patient profile under one owner user.
     """
-
+    print(f"Creating patient with payload: {payload}")
     try:
         new_patient = Patient(
             name=payload.name,
-            owner_id=payload.owner_id,
+            owner_id=owner_id,
             age=payload.age,
             diagnosis_level=payload.diagnosis_level
         )
