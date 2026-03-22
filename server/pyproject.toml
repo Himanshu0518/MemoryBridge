@@ -4,14 +4,21 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
     "bcrypt==4.0.1",
     "email-validator>=2.3.0",
     "fastapi[standard]>=0.135.1",
     "passlib>=1.7.4",
+    "psycopg2-binary>=2.9.11",
+    "psycopg2>=2.9.11",
     "pydantic>=2.12.5",
     "pyjwt>=2.12.1",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.22",
     "sqlalchemy>=2.0.48",
     "uvicorn>=0.41.0",
+    "pgvector>=0.4.2",
+    "facenet-pytorch>=2.5.3",
+    "opencv-python-headless>=4.13.0.92",
+    "numpy>=2.4.3",
 ]

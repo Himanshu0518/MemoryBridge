@@ -1,0 +1,173 @@
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+
+from server.models.patient import Patient
+from server.models.person import Person
+from server.schemas.patient import (
+    CreatePatientRequest,
+    UpdatePatientRequest,
+    CreatePersonRequest,
+    UpdatePersonRequest,
+)
+
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+def _get_patient_or_404(patient_id: int, db: Session) -> Patient:
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return patient
+
+
+def _assert_owns_patient(patient: Patient, owner_id: int) -> None:
+    """Make sure the logged-in user actually owns this patient profile."""
+    if patient.owner_id != owner_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _get_person_or_404(person_id: int, db: Session) -> Person:
+    person = db.get(Person, person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+    return person
+
+
+# ── patient service functions ──────────────────────────────────────────────────
+
+def createPatient(db: Session, payload: CreatePatientRequest, owner_id: int) -> Patient:
+    patient = Patient(
+        name=payload.name,
+        owner_id=owner_id,
+        age=payload.age,
+        diagnosis_level=payload.diagnosis_level,
+    )
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+    return patient
+
+
+def getMyPatients(owner_id: int, db: Session) -> list[Patient]:
+    return db.query(Patient).filter(Patient.owner_id == owner_id).all()
+
+
+def getPatientById(patient_id: int, owner_id: int, db: Session) -> Patient:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+    return patient
+
+
+def updatePatient(
+    patient_id: int,
+    owner_id: int,
+    payload: UpdatePatientRequest,
+    db: Session,
+) -> Patient:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+
+    if payload.name is not None:
+        patient.name = payload.name
+    if payload.age is not None:
+        patient.age = payload.age
+    if payload.diagnosis_level is not None:
+        patient.diagnosis_level = payload.diagnosis_level
+
+    db.commit()
+    db.refresh(patient)
+    return patient
+
+
+def deletePatient(patient_id: int, owner_id: int, db: Session) -> None:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+    db.delete(patient)
+    db.commit()
+
+
+# ── person service functions ───────────────────────────────────────────────────
+
+def createPerson(
+    patient_id: int,
+    owner_id: int,
+    payload: CreatePersonRequest,
+    db: Session,
+) -> Person:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+
+    person = Person(
+        patient_id=patient_id,
+        name=payload.name,
+        relation=payload.relation,
+        is_known=payload.is_known,
+    )
+    db.add(person)
+    db.commit()
+    db.refresh(person)
+    return person
+
+
+def getPersonsForPatient(patient_id: int, owner_id: int, db: Session) -> list[Person]:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+    return db.query(Person).filter(Person.patient_id == patient_id).all()
+
+
+def getPersonById(
+    patient_id: int,
+    person_id: int,
+    owner_id: int,
+    db: Session,
+) -> Person:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+
+    person = _get_person_or_404(person_id, db)
+    if person.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Person not found for this patient")
+    return person
+
+
+def updatePerson(
+    patient_id: int,
+    person_id: int,
+    owner_id: int,
+    payload: UpdatePersonRequest,
+    db: Session,
+) -> Person:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+
+    person = _get_person_or_404(person_id, db)
+    if person.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Person not found for this patient")
+
+    if payload.name is not None:
+        person.name = payload.name
+    if payload.relation is not None:
+        person.relation = payload.relation
+    if payload.is_known is not None:
+        person.is_known = payload.is_known
+
+    db.commit()
+    db.refresh(person)
+    return person
+
+
+def deletePerson(
+    patient_id: int,
+    person_id: int,
+    owner_id: int,
+    db: Session,
+) -> None:
+    patient = _get_patient_or_404(patient_id, db)
+    _assert_owns_patient(patient, owner_id)
+
+    person = _get_person_or_404(person_id, db)
+    if person.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Person not found for this patient")
+
+    db.delete(person)
+    db.commit()
