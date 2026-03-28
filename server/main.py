@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from server.config.db import Base, engine
 from server.core.api_error import ApiError
 from server.core.exception_handler import api_error_handler
@@ -18,6 +19,14 @@ app = FastAPI(
     title="MemoryBridge API",
     description="AI-assisted memory support system for Alzheimer's patients.",
     version="1.0.0",
+)
+ 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.add_exception_handler(ApiError, api_error_handler)
