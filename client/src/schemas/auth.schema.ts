@@ -10,7 +10,7 @@ export const loginSchema = z.object({
     .string()
     .min(1, "Password is required")
     .min(6, "Password must be at least 6 characters"),
-  rememberMe: z.boolean().optional().default(false),
+  rememberMe: z.boolean(),
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
@@ -35,8 +35,8 @@ export const registerSchema = z
       .regex(/[0-9]/, "Password must contain at least one number"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
     // Zod v4: boolean literal for "must be checked" validation
-    agreeToTerms: z.literal(true, {
-      error: "You must agree to the terms of service",
+    agreeToTerms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the terms of service",
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {

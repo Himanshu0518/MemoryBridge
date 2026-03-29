@@ -107,6 +107,7 @@ export default function RegisterPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      agreeToTerms: false,
     },
   });
 

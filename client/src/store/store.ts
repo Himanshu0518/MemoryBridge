@@ -44,7 +44,9 @@ const startL = listenerMiddleware.startListening.bind(listenerMiddleware);
 // login: pending → start
 startL({
   predicate: isMutationLifecycle("pending", "login"),
-  effect: (_, api) => api.dispatch(loginStart()),
+  effect: (_, api) => {
+    api.dispatch(loginStart());
+  },
 });
 
 // login: fulfilled → persist token + partial user
@@ -59,7 +61,9 @@ startL({
 // login: rejected → clear loading flag
 startL({
   predicate: isMutationLifecycle("rejected", "login"),
-  effect: (_, api) => api.dispatch(loginFailure()),
+  effect: (_, api) => {
+    api.dispatch(loginFailure());
+  },
 });
 
 // getMe: fulfilled → hydrate full profile
@@ -83,13 +87,17 @@ startL({
 // logout: fulfilled → wipe auth state
 startL({
   predicate: isMutationLifecycle("fulfilled", "logout"),
-  effect: (_, api) => api.dispatch(clearAuth()),
+  effect: (_, api) => {
+    api.dispatch(clearAuth());
+  },
 });
 
 // deleteMe: fulfilled → wipe auth state
 startL({
   predicate: isMutationLifecycle("fulfilled", "deleteMe"),
-  effect: (_, api) => api.dispatch(clearAuth()),
+  effect: (_, api) => {
+    api.dispatch(clearAuth());
+  },
 });
 
 // ─── Store ────────────────────────────────────────────────────────────────────

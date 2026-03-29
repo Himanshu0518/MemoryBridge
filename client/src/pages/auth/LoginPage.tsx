@@ -50,7 +50,7 @@ export default function LoginPage() {
   const [serverError, setServerError]   = useState<string | null>(null);
 
   // Redirect if already authenticated
-  if (isLoggedIn) { navigate("/dashboard", { replace: true }); }
+
 
   const [login, { isLoading }] = useLoginMutation();
 
