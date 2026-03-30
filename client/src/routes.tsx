@@ -1,12 +1,14 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // ── Layouts ───────────────────────────────────────────────────────────────────
-import RootLayout  from "@/layouts/RootLayout";
-import AuthLayout  from "@/layouts/AuthLayout";
+import RootLayout        from "@/layouts/RootLayout";
+import AuthLayout        from "@/layouts/AuthLayout";
+import PatientModeLayout from "@/layouts/PatientModeLayout";
 
 // ── Guards ────────────────────────────────────────────────────────────────────
-import ProtectedRoute from "@/components/guards/ProtectedRoute";
-import GuestRoute     from "@/components/guards/GuestRoute";
+import ProtectedRoute   from "@/components/guards/ProtectedRoute";
+import GuestRoute       from "@/components/guards/GuestRoute";
+import PatientModeGuard from "@/components/guards/PatientModeGuard";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 import LoginPage    from "@/pages/auth/LoginPage";
@@ -19,6 +21,9 @@ import PatientDetailPage from "@/pages/patients/PatientDetailPage";
 // ── Recognition ───────────────────────────────────────────────────────────────
 import RecognitionHubPage from "@/pages/recognition/RecognitionHubPage";
 import RecognitionPage    from "@/pages/recognition/RecognitionPage";
+
+// ── Patient mode ──────────────────────────────────────────────────────────────
+import PatientModePage from "@/pages/patient-mode/PatientModePage";
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 function NotFound() {
@@ -39,28 +44,43 @@ function NotFound() {
 }
 
 export const router = createBrowserRouter([
-  // ── Root (authenticated) ──────────────────────────────────────────────────
+  // ── Root (authenticated caregiver routes) ─────────────────────────────────
   {
     path: "/",
     Component: RootLayout,
     children: [
-      // "/" → "/patients"
       { index: true, element: <Navigate to="/patients" replace /> },
 
       {
         element: <ProtectedRoute />,
         children: [
           // Patients
-          { path: "patients",        Component: PatientsPage      },
-          { path: "patients/:id",    Component: PatientDetailPage },
+          { path: "patients",     Component: PatientsPage      },
+          { path: "patients/:id", Component: PatientDetailPage },
 
           // Recognition
-          { path: "recognition",              Component: RecognitionHubPage },
-          { path: "recognition/:patientId",   Component: RecognitionPage    },
+          { path: "recognition",            Component: RecognitionHubPage },
+          { path: "recognition/:patientId", Component: RecognitionPage    },
         ],
       },
 
       { path: "*", Component: NotFound },
+    ],
+  },
+
+  // ── Patient mode (session-gated, own layout) ──────────────────────────────
+  // Intentionally outside RootLayout so the patient gets a clean full-screen
+  // experience with no caregiver navbar.
+  {
+    path: "/patient-mode",
+    element: <PatientModeGuard />,
+    children: [
+      {
+        Component: PatientModeLayout,
+        children: [
+          { index: true, Component: PatientModePage },
+        ],
+      },
     ],
   },
 

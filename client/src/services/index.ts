@@ -1,4 +1,3 @@
-// Central barrel — import all service hooks from here
 export { api } from "./api";
 
 export {
@@ -6,6 +5,8 @@ export {
   useSignupMutation,
   useLoginMutation,
   useLogoutMutation,
+  useRefreshTokenMutation,
+  useVerifyCaregiverMutation,
   useGetMeQuery,
   useUpdateMeMutation,
   useChangePasswordMutation,
@@ -32,3 +33,9 @@ export {
   useGetKnownPersonsQuery,
   useStoreUnknownFaceMutation,
 } from "./recognitionApi";
+
+export {
+  patientSessionApi,
+  useStartPatientSessionMutation,
+  useExitPatientSessionMutation,
+} from "./patientSessionApi";

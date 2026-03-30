@@ -1,5 +1,5 @@
 // Central barrel — import all types from here
-export type { ApiResponse, User, AuthData, SignupData } from "./user.types";
+export type { ApiResponse, User, AuthData, RefreshData, SignupData } from "./user.types";
 export type {
   SignupPayload,
   LoginPayload,
@@ -24,3 +24,4 @@ export type {
   KnownPerson,
   KnownPersonsResponse,
 } from "./recognition.types";
+export type { PatientSessionData, PatientSession } from "./patientSession.types";

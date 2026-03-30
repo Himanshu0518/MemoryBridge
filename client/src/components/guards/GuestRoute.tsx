@@ -5,16 +5,13 @@ import { selectIsLoggedIn } from "@/store/selectors";
 /**
  * GuestRoute — wraps routes that should only be visible to unauthenticated users.
  *
- * Usage in routes.tsx:
- *   { element: <GuestRoute />, children: [login, register …] }
- *
- * If the user is already logged in they are sent straight to /dashboard.
+ * If the user is already logged in they are sent to /patients.
  */
 export default function GuestRoute() {
   const isLoggedIn = useAppSelector(selectIsLoggedIn);
 
   if (isLoggedIn) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/patients" replace />;
   }
 
   return <Outlet />;

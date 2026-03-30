@@ -9,113 +9,103 @@ import authReducer, {
   profileLoaded,
   clearAuth,
 } from "./authSlice";
-import type { User, AuthData } from "@/types";
+import patientSessionReducer, {
+  sessionStart,
+  sessionOpened,
+  sessionClosed,
+  sessionLoadingFailed,
+} from "./patientSessionSlice";
+import type { User, AuthData, PatientSessionData } from "@/types";
 
-// ─── RTK Query action shape (minimal, avoids importing internals) ─────────────
+// ─── RTK Query action helpers ─────────────────────────────────────────────────
 interface RtkQueryAction extends UnknownAction {
-  meta?: { arg?: { endpointName?: string } };
+  meta?:    { arg?: { endpointName?: string } };
   payload?: unknown;
 }
 
-function isMutationLifecycle(
-  lifecycle: "pending" | "fulfilled" | "rejected",
-  endpoint: string
-) {
+function isMutationLifecycle(lifecycle: "pending" | "fulfilled" | "rejected", endpoint: string) {
   return (action: UnknownAction): action is RtkQueryAction =>
     (action as RtkQueryAction).type === `api/executeMutation/${lifecycle}` &&
     (action as RtkQueryAction).meta?.arg?.endpointName === endpoint;
 }
 
-function isQueryLifecycle(
-  lifecycle: "fulfilled" | "rejected",
-  endpoint: string
-) {
+function isQueryLifecycle(lifecycle: "fulfilled" | "rejected", endpoint: string) {
   return (action: UnknownAction): action is RtkQueryAction =>
     (action as RtkQueryAction).type === `api/executeQuery/${lifecycle}` &&
     (action as RtkQueryAction).meta?.arg?.endpointName === endpoint;
 }
 
-// ─── Listener middleware ───────────────────────────────────────────────────────
-// Keeps authSlice in sync with RTK Query lifecycle events without creating
-// a circular import between authSlice ↔ userApi ↔ api ↔ store.
+// ─── Listeners ────────────────────────────────────────────────────────────────
 const listenerMiddleware = createListenerMiddleware();
 const startL = listenerMiddleware.startListening.bind(listenerMiddleware);
 
-// login: pending → start
-startL({
-  predicate: isMutationLifecycle("pending", "login"),
-  effect: (_, api) => {
-    api.dispatch(loginStart());
-  },
-});
-
-// login: fulfilled → persist token + partial user
+// login
+startL({ predicate: isMutationLifecycle("pending",   "login"), effect: (_, a) => a.dispatch(loginStart()) });
 startL({
   predicate: isMutationLifecycle("fulfilled", "login"),
-  effect: (action, api) => {
+  effect: (action, a) => {
     const data = (action as RtkQueryAction).payload as { data?: AuthData } | undefined;
-    if (data?.data) api.dispatch(loginSuccess(data.data));
+    if (data?.data) a.dispatch(loginSuccess(data.data));
   },
 });
+startL({ predicate: isMutationLifecycle("rejected",  "login"), effect: (_, a) => a.dispatch(loginFailure()) });
 
-// login: rejected → clear loading flag
-startL({
-  predicate: isMutationLifecycle("rejected", "login"),
-  effect: (_, api) => {
-    api.dispatch(loginFailure());
-  },
-});
-
-// getMe: fulfilled → hydrate full profile
+// getMe
 startL({
   predicate: isQueryLifecycle("fulfilled", "getMe"),
-  effect: (action, api) => {
+  effect: (action, a) => {
     const data = (action as RtkQueryAction).payload as { data?: User } | undefined;
-    if (data?.data) api.dispatch(profileLoaded(data.data));
+    if (data?.data) a.dispatch(profileLoaded(data.data));
   },
 });
 
-// updateMe: fulfilled → sync profile in state
+// updateMe
 startL({
   predicate: isMutationLifecycle("fulfilled", "updateMe"),
-  effect: (action, api) => {
+  effect: (action, a) => {
     const data = (action as RtkQueryAction).payload as { data?: User } | undefined;
-    if (data?.data) api.dispatch(profileLoaded(data.data));
+    if (data?.data) a.dispatch(profileLoaded(data.data));
   },
 });
 
-// logout: fulfilled → wipe auth state
-startL({
-  predicate: isMutationLifecycle("fulfilled", "logout"),
-  effect: (_, api) => {
-    api.dispatch(clearAuth());
-  },
-});
+// logout / deleteMe
+startL({ predicate: isMutationLifecycle("fulfilled", "logout"),   effect: (_, a) => a.dispatch(clearAuth()) });
+startL({ predicate: isMutationLifecycle("fulfilled", "deleteMe"), effect: (_, a) => a.dispatch(clearAuth()) });
 
-// deleteMe: fulfilled → wipe auth state
+// patient session — start
+startL({ predicate: isMutationLifecycle("pending",   "startPatientSession"), effect: (_, a) => a.dispatch(sessionStart()) });
 startL({
-  predicate: isMutationLifecycle("fulfilled", "deleteMe"),
-  effect: (_, api) => {
-    api.dispatch(clearAuth());
+  predicate: isMutationLifecycle("fulfilled", "startPatientSession"),
+  effect: (action, a) => {
+    const resp = (action as RtkQueryAction).payload as { data?: PatientSessionData } | undefined;
+    if (resp?.data) {
+      a.dispatch(sessionOpened({
+        patientId:   resp.data.patient_id,
+        patientName: resp.data.patient_name,
+        token:       resp.data.patient_token,
+      }));
+    }
   },
 });
+startL({ predicate: isMutationLifecycle("rejected",  "startPatientSession"), effect: (_, a) => a.dispatch(sessionLoadingFailed()) });
+
+// patient session — exit
+startL({ predicate: isMutationLifecycle("fulfilled", "exitPatientSession"), effect: (_, a) => a.dispatch(sessionClosed()) });
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 export const store = configureStore({
   reducer: {
     [api.reducerPath]: api.reducer,
-    auth: authReducer,
+    auth:           authReducer,
+    patientSession: patientSessionReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
-      // listenerMiddleware must come before RTK Query middleware
       .prepend(listenerMiddleware.middleware)
       .concat(api.middleware),
 });
 
-// Enable refetchOnFocus / refetchOnReconnect behaviours
 setupListeners(store.dispatch);
 
-// ─── Inferred types ───────────────────────────────────────────────────────────
 export type RootState   = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

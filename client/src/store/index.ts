@@ -20,3 +20,10 @@ export {
   loginFailure,
   profileLoaded,
 } from "./authSlice";
+
+export {
+  sessionStart,
+  sessionOpened,
+  sessionClosed,
+  sessionLoadingFailed,
+} from "./patientSessionSlice";

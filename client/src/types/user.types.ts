@@ -1,5 +1,4 @@
 // ─── Generic API Response wrapper ────────────────────────────────────────────
-// Matches server/core/api_response.py → ApiResponse shape
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
@@ -7,7 +6,6 @@ export interface ApiResponse<T = unknown> {
 }
 
 // ─── User ─────────────────────────────────────────────────────────────────────
-// Mirrors server/schemas/user.py → UserResponse
 export interface User {
   id: number;
   name: string;
@@ -18,16 +16,23 @@ export interface User {
 
 // ─── Auth data returned on login ──────────────────────────────────────────────
 export interface AuthData {
-  id: number;
-  email: string;
-  role: string;
-  /** JWT — also stored in httpOnly cookie by server */
-  "access-token": string;
+  id:            number;
+  name:          string;
+  email:         string;
+  role:          string;
+  access_token:  string;
+  refresh_token: string;
+}
+
+// ─── Token refresh response ───────────────────────────────────────────────────
+export interface RefreshData {
+  access_token:  string;
+  refresh_token: string;
 }
 
 // ─── Signup data returned on register ────────────────────────────────────────
 export interface SignupData {
-  id: number;
-  name: string;
+  id:    number;
+  name:  string;
   email: string;
 }

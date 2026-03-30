@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   ArrowLeft, Plus, User2, Camera, Loader2, AlertCircle,
   Trash2, Pencil, CheckCircle2, UserCheck, UserX, ScanFace,
+  MonitorSmartphone,
 } from "lucide-react";
 import {
   useGetPatientQuery,
@@ -13,6 +14,7 @@ import {
   useDeletePersonMutation,
   useUpdatePersonMutation,
   useStoreKnownFaceMutation,
+  useStartPatientSessionMutation,
 } from "@/services";
 import type { Person } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -291,6 +293,24 @@ export default function PatientDetailPage() {
   const { data: patientData, isLoading: loadingPatient } = useGetPatientQuery(patientId);
   const { data: personsData, isLoading: loadingPersons } = useGetPersonsQuery(patientId);
   const [showAddFace, setShowAddFace] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  // ── Patient session ────────────────────────────────────────────────────────
+  const [startPatientSession, { isLoading: startingSession }] =
+    useStartPatientSessionMutation();
+
+  const handleSwitchToPatient = async () => {
+    setSessionError(null);
+    try {
+      await startPatientSession(patientId).unwrap();
+      // Listener in store.ts dispatches sessionOpened → Redux updated.
+      // Navigate to the patient mode screen.
+      navigate("/patient-mode");
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      setSessionError(msg ?? "Failed to start patient session. Please try again.");
+    }
+  };
 
   const patient = patientData?.data;
   const persons = personsData?.data ?? [];
@@ -326,6 +346,14 @@ export default function PatientDetailPage() {
         <span className="text-foreground font-medium">{patient.name}</span>
       </div>
 
+      {/* Session error banner */}
+      {sessionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          {sessionError}
+        </div>
+      )}
+
       {/* Patient header */}
       <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-4">
@@ -344,15 +372,31 @@ export default function PatientDetailPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        {/* Action buttons */}
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+          {/* Primary: Switch to patient mode */}
+          <Button
+            size="sm"
+            onClick={handleSwitchToPatient}
+            disabled={startingSession}
+            className="gap-1.5"
+          >
+            {startingSession
+              ? <><Loader2 className="size-4 animate-spin" /> Starting…</>
+              : <><MonitorSmartphone className="size-4" /> Switch to patient</>
+            }
+          </Button>
+
+          {/* Secondary actions */}
           <Button
             size="sm"
             variant="outline"
             onClick={() => navigate(`/recognition/${patientId}`)}
           >
-            <ScanFace className="size-4" /> Run Recognition
+            <ScanFace className="size-4" /> Run recognition
           </Button>
-          <Button size="sm" onClick={() => setShowAddFace(true)}>
+          <Button size="sm" variant="outline" onClick={() => setShowAddFace(true)}>
             <Plus className="size-4" /> Add face
           </Button>
         </div>

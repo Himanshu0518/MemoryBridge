@@ -5,13 +5,15 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from "@reduxjs/toolkit/query/react";
+import { tokensRefreshed, clearAuth } from "@/store/authSlice";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 interface StateWithAuth {
-  auth: { token: string | null };
+  auth: { token: string | null; refreshToken: string | null; userId: number | null };
 }
 
+// ── Raw base query ─────────────────────────────────────────────────────────────
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: BASE_URL,
   credentials: "include",
@@ -22,26 +24,67 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-const baseQueryWithErrorHandling: BaseQueryFn<
+// ── Auto-refresh wrapper ───────────────────────────────────────────────────────
+// On a 401, attempt one silent token refresh then retry the original request.
+// If refresh also fails, clear auth (force re-login).
+let isRefreshing = false;
+
+const baseQueryWithRefresh: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  const result = await rawBaseQuery(args, api, extraOptions);
-  if (result.error) {
-    const { status } = result.error;
-    if (status === 401) {
-      const { clearAuth } = await import("@/store/authSlice");
+  let result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error?.status === 401) {
+    const state        = api.getState() as StateWithAuth;
+    const refreshToken = state.auth.refreshToken ?? localStorage.getItem("refresh_token");
+    const userId       = state.auth.userId ?? Number(localStorage.getItem("user_id"));
+
+    // Only attempt refresh if we have the tokens and are not already refreshing
+    if (refreshToken && userId && !isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshResult = await rawBaseQuery(
+          {
+            url:    "/users/refresh",
+            method: "POST",
+            body:   { user_id: userId, refresh_token: refreshToken },
+          },
+          api,
+          extraOptions,
+        );
+
+        if (refreshResult.data) {
+          const data = (refreshResult.data as { data?: { access_token: string; refresh_token: string } }).data;
+          if (data) {
+            api.dispatch(tokensRefreshed(data));
+            // Retry the original request with new token
+            result = await rawBaseQuery(args, api, extraOptions);
+          }
+        } else {
+          // Refresh failed — force logout
+          api.dispatch(clearAuth());
+        }
+      } finally {
+        isRefreshing = false;
+      }
+    } else {
       api.dispatch(clearAuth());
     }
-    console.error(`[API Error] status=${status}`, result.error.data);
   }
+
+  if (result.error && result.error.status !== 401) {
+    console.error(`[API Error] status=${result.error.status}`, result.error.data);
+  }
+
   return result;
 };
 
+// ── API instance ───────────────────────────────────────────────────────────────
 export const api = createApi({
   reducerPath: "api",
-  baseQuery: baseQueryWithErrorHandling,
-  tagTypes: ["User", "Patient", "Person", "Recognition"],
-  endpoints: () => ({}),
+  baseQuery:   baseQueryWithRefresh,
+  tagTypes:    ["User", "Patient", "Person", "Recognition"],
+  endpoints:   () => ({}),
 });
