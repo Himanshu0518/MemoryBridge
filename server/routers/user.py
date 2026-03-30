@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Response
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from server.config.db import get_db
@@ -13,6 +14,9 @@ from server.schemas.user import (
 from server.services.user import (
     createUser,
     loginUser,
+    logoutUser,
+    refreshAccessTokenForUser,
+    verifyCaregiver,
     getMe,
     updateMe,
     changePassword,
@@ -26,7 +30,6 @@ router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post("/signup", response_model=ApiResponse)
 def signup(payload: UserCreatePayload, db: Session = Depends(get_db)):
-    """Register a new caregiver account."""
     user = createUser(payload, db)
     return ApiResponse(
         success=True,
@@ -41,28 +44,101 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ):
-    """Login and receive a JWT token (also set as httpOnly cookie)."""
-    user, token = loginUser(payload, db)
+    """
+    Login and receive:
+    - access_token  (30 days)   — stored in localStorage by frontend
+    - refresh_token (90 days)   — stored in localStorage by frontend
+    - httpOnly cookie           — fallback for cookie-based auth
+    """
+    user, access_token, refresh_token = loginUser(payload, db)
 
     response.set_cookie(
         key="access-token",
-        value=token,
+        value=access_token,
         httponly=True,
-        secure=False,       # set True in production (HTTPS)
+        secure=False,
         samesite="Lax",
     )
 
     return ApiResponse(
         success=True,
         message="Login successful",
-        data={"id": user.id, "email": user.email, "role": user.role, "access-token": token},
+        data={
+            "id":            user.id,
+            "name":          user.name,
+            "email":         user.email,
+            "role":          user.role,
+            "access_token":  access_token,
+            "refresh_token": refresh_token,
+        },
     )
 
 
+class RefreshPayload(BaseModel):
+    user_id:       int
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=ApiResponse)
+def refresh(
+    payload: RefreshPayload,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """
+    Exchange a valid refresh token for a new access + refresh token pair.
+    Frontend calls this automatically when a 401 is received.
+    """
+    user, new_access, new_refresh = refreshAccessTokenForUser(
+        payload.user_id, payload.refresh_token, db
+    )
+
+    response.set_cookie(
+        key="access-token",
+        value=new_access,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+    )
+
+    return ApiResponse(
+        success=True,
+        message="Token refreshed",
+        data={
+            "access_token":  new_access,
+            "refresh_token": new_refresh,
+        },
+    )
+
+
+class VerifyCaregiverPayload(BaseModel):
+    email:      EmailStr
+    password:   str
+    patient_id: int
+
+
+@router.post("/verify-caregiver", response_model=ApiResponse)
+def verify_caregiver_endpoint(
+    payload: VerifyCaregiverPayload,
+    db: Session = Depends(get_db),
+):
+    """
+    Logout guard: verify that the email+password belong to a caregiver
+    who owns the given patient_id before allowing patient-mode exit.
+    No auth header required — this is intentionally public for the guard flow.
+    """
+    verifyCaregiver(payload.email, payload.password, payload.patient_id, db)
+    return ApiResponse(success=True, message="Caregiver verified")
+
+
 @router.post("/logout", response_model=ApiResponse)
-def logout(response: Response, token_data: dict = Depends(verify_token)):
-    """Logout — clears the auth cookie."""
+def logout(
+    response: Response,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(verify_token),
+):
     response.delete_cookie("access-token")
+    logoutUser(token_data["user_id"], db)
     return ApiResponse(success=True, message="Logged out successfully")
 
 
@@ -73,18 +149,11 @@ def get_profile(
     db: Session = Depends(get_db),
     token_data: dict = Depends(verify_token),
 ):
-    """Get the logged-in user's profile."""
     user = getMe(token_data["user_id"], db)
     return ApiResponse(
         success=True,
         message="Profile fetched",
-        data={
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "age": user.age,
-            "role": user.role,
-        },
+        data={"id": user.id, "name": user.name, "email": user.email, "age": user.age, "role": user.role},
     )
 
 
@@ -94,18 +163,11 @@ def update_profile(
     db: Session = Depends(get_db),
     token_data: dict = Depends(verify_token),
 ):
-    """Update name or age of the logged-in user."""
     user = updateMe(token_data["user_id"], payload, db)
     return ApiResponse(
         success=True,
         message="Profile updated",
-        data={
-            "id": user.id,
-            "name": user.name,
-            "email": user.email,
-            "age": user.age,
-            "role": user.role,
-        },
+        data={"id": user.id, "name": user.name, "email": user.email, "age": user.age, "role": user.role},
     )
 
 
@@ -115,7 +177,6 @@ def update_password(
     db: Session = Depends(get_db),
     token_data: dict = Depends(verify_token),
 ):
-    """Change the logged-in user's password."""
     changePassword(token_data["user_id"], payload, db)
     return ApiResponse(success=True, message="Password changed successfully")
 
@@ -125,6 +186,5 @@ def delete_account(
     db: Session = Depends(get_db),
     token_data: dict = Depends(verify_token),
 ):
-    """Permanently delete the logged-in user's account and all their patients."""
     deleteMe(token_data["user_id"], db)
     return ApiResponse(success=True, message="Account deleted successfully")

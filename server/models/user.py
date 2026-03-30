@@ -7,40 +7,26 @@ class User(Base):
     """
     User represents an authenticated account in the system.
 
-    This table stores people who can log into MemoryBridge, such as:
-    - caregiver
-    - doctor
-    - admin
-    - patient (optional later)
-
-    Important:
-    A User is not necessarily someone recognized by face detection.
-    Face-recognized identities are stored in Person table.
-
-    Relationship:
-    One User can manage multiple Patient profiles.
+    Roles: caregiver | doctor | admin | patient
+    One User manages multiple Patient profiles.
     """
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-
-    name = Column(String, nullable=False, index=True)
-
-    email = Column(String, unique=True, nullable=False, index=True)
-
+    id       = Column(Integer, primary_key=True, index=True)
+    name     = Column(String, nullable=False, index=True)
+    email    = Column(String, unique=True, nullable=False, index=True)
     password = Column(String, nullable=False)
+    age      = Column(Integer, nullable=True)
+    role     = Column(String, default="caregiver", nullable=False)
 
-    age = Column(Integer, nullable=True)
-
-    role = Column(String, default="caregiver", nullable=False)
-    # possible values:
-    # caregiver, doctor, admin, patient
+    # Hashed refresh token — stored so we can invalidate it on logout/password change
+    refresh_token_hash = Column(String, nullable=True)
 
     patients = relationship(
         "Patient",
         back_populates="owner",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self):
