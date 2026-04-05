@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Annotated
 from datetime import datetime
+from pydantic.functional_validators import BeforeValidator
+
+
+def _none_to_false(v):
+    return v if v is not None else False
 
 
 # ── Patient schemas ────────────────────────────────────────────────────────────
@@ -46,6 +51,9 @@ class UpdatePersonRequest(BaseModel):
     name: Optional[str] = Field(None, example="Rahul Singh")
     relation: Optional[str] = Field(None, example="son")
     is_known: Optional[bool] = None
+    pending_verification: Optional[bool] = None
+    suggested_name: Optional[str] = None
+    suggested_relation: Optional[str] = None
 
 
 class PersonResponse(BaseModel):
@@ -54,6 +62,9 @@ class PersonResponse(BaseModel):
     name: Optional[str]
     relation: Optional[str]
     is_known: bool
+    pending_verification: Annotated[bool, BeforeValidator(_none_to_false)] = False
+    suggested_name: Optional[str] = None
+    suggested_relation: Optional[str] = None
     first_seen: datetime
     last_seen: datetime
 

@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from server.models.patient import Patient
 from server.models.person import Person
+from server.models.conversation import Conversation
 from server.schemas.patient import (
     CreatePatientRequest,
     UpdatePatientRequest,
@@ -150,6 +151,12 @@ def updatePerson(
         person.relation = payload.relation
     if payload.is_known is not None:
         person.is_known = payload.is_known
+    if payload.pending_verification is not None:
+        person.pending_verification = payload.pending_verification
+    if payload.suggested_name is not None:
+        person.suggested_name = payload.suggested_name
+    if payload.suggested_relation is not None:
+        person.suggested_relation = payload.suggested_relation
 
     db.commit()
     db.refresh(person)
@@ -169,5 +176,8 @@ def deletePerson(
     if person.patient_id != patient_id:
         raise HTTPException(status_code=404, detail="Person not found for this patient")
 
+    db.query(Conversation).filter(Conversation.person_id == person_id).update(
+        {Conversation.person_id: None}
+    )
     db.delete(person)
     db.commit()

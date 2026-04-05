@@ -30,6 +30,9 @@ export interface Person {
   name: string | null;
   relation: string | null;
   is_known: boolean;
+  pending_verification: boolean;
+  suggested_name: string | null;
+  suggested_relation: string | null;
   first_seen: string;
   last_seen: string;
 }
@@ -44,4 +47,7 @@ export interface UpdatePersonPayload {
   name?: string;
   relation?: string;
   is_known?: boolean;
+  pending_verification?: boolean;
+  suggested_name?: string | null;
+  suggested_relation?: string | null;
 }

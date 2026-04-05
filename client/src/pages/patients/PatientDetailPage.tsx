@@ -6,7 +6,7 @@ import { z } from "zod";
 import {
   ArrowLeft, Plus, User2, Camera, Loader2, AlertCircle,
   Trash2, Pencil, CheckCircle2, UserCheck, UserX, ScanFace,
-  MonitorSmartphone,
+  MonitorSmartphone, ShieldCheck, ShieldX, Clock,
 } from "lucide-react";
 import {
   useGetPatientQuery,
@@ -201,6 +201,77 @@ function LabelUnknownModal({
   );
 }
 
+// ─── Pending Verification Card ───────────────────────────────────────────────
+function PendingVerificationCard({
+  person,
+  patientId,
+}: {
+  person: Person;
+  patientId: number;
+}) {
+  const [updatePerson, { isLoading: approving }] = useUpdatePersonMutation();
+  const [deletePerson, { isLoading: rejecting }] = useDeletePersonMutation();
+  const [confirmReject, setConfirmReject] = useState(false);
+
+  const handleApprove = async () => {
+    await updatePerson({
+      patientId,
+      personId: person.id,
+      payload: {
+        name: person.suggested_name!,
+        relation: person.suggested_relation!,
+        is_known: true,
+        pending_verification: false,
+        suggested_name: null,
+        suggested_relation: null,
+      },
+    }).unwrap();
+  };
+
+  const handleReject = async () => {
+    if (!confirmReject) { setConfirmReject(true); return; }
+    await deletePerson({ patientId, personId: person.id }).unwrap();
+  };
+
+  return (
+    <div className="rounded-lg border border-amber-400/40 bg-amber-50/50 dark:bg-amber-500/5 px-4 py-3 flex items-center gap-3">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+        <Clock className="size-4 text-amber-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">
+          {person.suggested_name}
+          <span className="ml-2 text-xs font-normal text-muted-foreground capitalize">({person.suggested_relation})</span>
+        </p>
+        <p className="text-xs text-muted-foreground">Suggested by patient · awaiting your verification</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          onClick={handleApprove}
+          disabled={approving || rejecting}
+          className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-40"
+        >
+          {approving ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
+          Approve
+        </button>
+        <button
+          onClick={handleReject}
+          disabled={approving || rejecting}
+          className={cn(
+            "flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40",
+            confirmReject
+              ? "bg-red-500 text-white hover:bg-red-600"
+              : "border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40"
+          )}
+        >
+          {rejecting ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldX className="size-3.5" />}
+          {confirmReject ? "Confirm" : "Reject"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Person Row ───────────────────────────────────────────────────────────────
 function PersonRow({
   person,
@@ -313,9 +384,10 @@ export default function PatientDetailPage() {
   };
 
   const patient = patientData?.data;
-  const persons = personsData?.data ?? [];
-  const known   = persons.filter((p) => p.is_known);
-  const unknown = persons.filter((p) => !p.is_known);
+  const persons  = personsData?.data ?? [];
+  const pending  = persons.filter((p) => p.pending_verification);
+  const known    = persons.filter((p) => p.is_known && !p.pending_verification);
+  const unknown  = persons.filter((p) => !p.is_known && !p.pending_verification);
 
   if (loadingPatient) {
     return (
@@ -424,6 +496,21 @@ export default function PatientDetailPage() {
         </div>
       ) : (
         <div className="space-y-5">
+          {/* Pending verifications */}
+          {pending.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5 mb-2">
+                <Clock className="size-4 text-amber-500" /> Pending verification
+                <span className="ml-1 text-muted-foreground font-normal">({pending.length})</span>
+              </h2>
+              <div className="grid gap-2">
+                {pending.map((p) => (
+                  <PendingVerificationCard key={p.id} person={p} patientId={patientId} />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Known persons */}
           <section>
             <div className="flex items-center justify-between mb-2">

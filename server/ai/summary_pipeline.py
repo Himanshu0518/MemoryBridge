@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 # ── LLM (shared, thread-safe) ─────────────────────────────────────────────────
 _llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",      # standard stable version
+    model="gemini-2.5-flash",
     temperature=0.2,               # low temperature → consistent, factual output
     google_api_key=GEMINI_API_KEY,
 )

@@ -6,8 +6,13 @@ import { useGetConversationsQuery } from "@/services";
 import type { ConversationRecord } from "@/types";
 import { cn } from "@/lib/utils";
 
+function toUtc(iso: string) {
+  // Backend stores UTC timestamps without 'Z'; add it so the browser parses correctly
+  return iso.endsWith("Z") ? iso : iso + "Z";
+}
+
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", {
+  return new Date(toUtc(iso)).toLocaleDateString("en-IN", {
     weekday: "short", day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -15,7 +20,7 @@ function formatDate(iso: string) {
 
 function duration(started: string, ended: string | null) {
   if (!ended) return "Ongoing";
-  const ms = new Date(ended).getTime() - new Date(started).getTime();
+  const ms = new Date(toUtc(ended)).getTime() - new Date(toUtc(started)).getTime();
   const m  = Math.floor(ms / 60000);
   if (m < 1) return "< 1 min";
   if (m < 60) return `${m} min`;
@@ -151,7 +156,7 @@ export default function PatientHistoryPage() {
 
   // Group by date
   const grouped = conversations.reduce<Record<string, ConversationRecord[]>>((acc, c) => {
-    const key = new Date(c.started_at).toLocaleDateString("en-IN", {
+    const key = new Date(toUtc(c.started_at)).toLocaleDateString("en-IN", {
       weekday: "long", day: "numeric", month: "long", year: "numeric",
     });
     if (!acc[key]) acc[key] = [];

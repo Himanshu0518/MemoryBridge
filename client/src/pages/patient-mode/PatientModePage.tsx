@@ -2,18 +2,22 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import {
   Brain, Camera, CameraOff, ScanFace, Loader2, CheckCircle2,
   AlertCircle, UserX, UserCheck, Zap, Mic, Square, MessageSquare,
-  Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History,
+  Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History, Send,
 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
-import { useMatchFaceMutation, useGetConversationsForPersonQuery } from "@/services";
+import { useMatchFaceMutation, useGetConversationsForPersonQuery, useSuggestIdentityMutation } from "@/services";
 import type { MatchFaceData } from "@/types";
 import { useTranscription } from "@/hooks/useTranscription";
 import { cn } from "@/lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function toUtc(iso: string) {
+  return iso.endsWith("Z") ? iso : iso + "Z";
+}
+
 function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Date.now() - new Date(toUtc(iso)).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1)  return "just now";
   if (m < 60) return `${m}m ago`;
@@ -23,7 +27,7 @@ function timeAgo(iso: string) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", {
+  return new Date(toUtc(iso)).toLocaleDateString("en-IN", {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -41,18 +45,93 @@ const RELATION_COLORS: Record<string, string> = {
 const relColor = (rel: string | null) =>
   RELATION_COLORS[(rel ?? "").toLowerCase()] ?? "bg-muted text-muted-foreground";
 
+// ─── Suggest identity form (shown when face is not recognised) ───────────────
+function SuggestIdentityForm({
+  unknownPersonId,
+  patientId,
+  onRetry,
+}: {
+  unknownPersonId: number;
+  patientId: number;
+  onRetry: () => void;
+}) {
+  const [name, setName]         = useState("");
+  const [relation, setRelation] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [suggestIdentity, { isLoading }] = useSuggestIdentityMutation();
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !relation.trim()) return;
+    await suggestIdentity({ personId: unknownPersonId, suggestedName: name.trim(), suggestedRelation: relation.trim(), patientId }).unwrap();
+    setSubmitted(true);
+  };
+
+  if (submitted) return (
+    <div className="flex flex-col items-center gap-3 py-6 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+        <CheckCircle2 className="size-6 text-emerald-600" />
+      </div>
+      <p className="font-semibold">Suggestion sent!</p>
+      <p className="text-sm text-muted-foreground">Your caregiver will verify and add this person.</p>
+      <button onClick={onRetry} className="mt-1 flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors">
+        <ScanFace className="size-4" /> Scan again
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 py-4 px-2">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
+          <UserX className="size-7 text-muted-foreground" />
+        </div>
+        <p className="font-bold text-base">Not recognised</p>
+        <p className="text-sm text-muted-foreground">Do you know this person? Tell us who they are.</p>
+      </div>
+      <div className="space-y-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Their name (e.g. Rahul)"
+          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
+        />
+        <input
+          value={relation}
+          onChange={(e) => setRelation(e.target.value)}
+          placeholder="Relation (e.g. son, doctor)"
+          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={handleSubmit}
+          disabled={isLoading || !name.trim() || !relation.trim()}
+          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background py-2.5 text-sm font-semibold hover:opacity-80 transition-opacity disabled:opacity-40"
+        >
+          {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          Send for verification
+        </button>
+        <button onClick={onRetry} className="flex items-center justify-center rounded-xl border border-border px-3 hover:bg-muted transition-colors">
+          <RefreshCw className="size-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Recognition result card ───────────────────────────────────────────────────
 function RecognitionCard({
   result,
+  patientId,
   onRetry,
 }: {
   result: { success: boolean; data?: MatchFaceData };
+  patientId: number;
   onRetry: () => void;
 }) {
   const d = result.data;
   const noFace = !d || ("error" in d && d.error === "no_face_detected");
   const isRec  = d && "recognised" in d && d.recognised;
-  const isUnk  = d && "recognised" in d && !d.recognised && !noFace;
 
   if (noFace) return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -101,6 +180,12 @@ function RecognitionCard({
     </div>
   );
 
+  // Unknown face — show suggestion form
+  const unknownPersonId = d && "unknown_face_id" in d ? d.unknown_face_id : null;
+  if (unknownPersonId) {
+    return <SuggestIdentityForm unknownPersonId={unknownPersonId} patientId={patientId} onRetry={onRetry} />;
+  }
+
   return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
       <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
@@ -108,7 +193,7 @@ function RecognitionCard({
       </div>
       <div>
         <p className="font-bold text-lg">Not recognised</p>
-        <p className="text-sm text-muted-foreground mt-1">This face hasn't been registered. Ask your caregiver to add them.</p>
+        <p className="text-sm text-muted-foreground mt-1">This face hasn't been registered.</p>
       </div>
       <button onClick={onRetry} className="flex items-center gap-2 rounded-xl border border-border px-5 py-2 text-sm font-semibold hover:bg-muted transition-colors">
         <RefreshCw className="size-4" /> Try again
@@ -367,7 +452,7 @@ function CameraPanel({
         {/* Result overlay */}
         {result && (
           <div className="absolute inset-0 bg-card overflow-y-auto">
-            <RecognitionCard result={result} onRetry={() => { setResult(null); }} />
+            <RecognitionCard result={result} patientId={patientId} onRetry={() => { setResult(null); }} />
           </div>
         )}
       </div>

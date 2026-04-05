@@ -17,7 +17,7 @@ export {
 export {
   recognitionApi,
   useStoreKnownFaceMutation, useMatchFaceMutation,
-  useGetKnownPersonsQuery, useStoreUnknownFaceMutation,
+  useGetKnownPersonsQuery, useStoreUnknownFaceMutation, useSuggestIdentityMutation,
 } from "./recognitionApi";
 
 export {

@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from server.config.db import get_db
 from server.core.api_error import ApiError
+from server.core.api_response import ApiResponse
 from server.schemas.face import StoreFaceResponse, MatchFaceResponse
 from server.services import face_service
 from server.dependencies.auth import verify_token
+from server.models.person import Person
 
 router = APIRouter(prefix="/recognition", tags=["Face Recognition"])
 
@@ -49,6 +52,32 @@ async def store_face(
             "embedding_ids":    [e.id for e in embeddings],
         },
     )
+
+
+class SuggestIdentityBody(BaseModel):
+    suggested_name: str
+    suggested_relation: str
+
+
+@router.post("/suggest-identity/{person_id}", response_model=ApiResponse)
+def suggest_identity(
+    person_id: int,
+    body: SuggestIdentityBody,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(verify_token),
+):
+    """
+    Patient suggests a name and relation for an unrecognised face.
+    Saved as pending_verification=True for caregiver to approve or reject.
+    """
+    person = db.get(Person, person_id)
+    if not person:
+        raise ApiError(404, "Person not found")
+    person.suggested_name = body.suggested_name
+    person.suggested_relation = body.suggested_relation
+    person.pending_verification = True
+    db.commit()
+    return ApiResponse(success=True, message="Suggestion submitted for caregiver review", data={"person_id": person_id})
 
 
 @router.post("/match/{patient_id}", response_model=MatchFaceResponse)

@@ -68,6 +68,21 @@ export const recognitionApi = api.injectEndpoints({
         { type: "Person", id: `LIST-${patientId}` },
       ],
     }),
+
+    // ── POST /recognition/suggest-identity/{person_id} ───────────────────────
+    suggestIdentity: builder.mutation<
+      { success: boolean; message: string },
+      { personId: number; suggestedName: string; suggestedRelation: string; patientId: number }
+    >({
+      query: ({ personId, suggestedName, suggestedRelation }) => ({
+        url: `/recognition/suggest-identity/${personId}`,
+        method: "POST",
+        body: { suggested_name: suggestedName, suggested_relation: suggestedRelation },
+      }),
+      invalidatesTags: (_r, _e, { patientId }) => [
+        { type: "Person", id: `LIST-${patientId}` },
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -77,4 +92,5 @@ export const {
   useMatchFaceMutation,
   useGetKnownPersonsQuery,
   useStoreUnknownFaceMutation,
+  useSuggestIdentityMutation,
 } = recognitionApi;
