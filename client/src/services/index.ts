@@ -27,5 +27,6 @@ export {
 
 export {
   transcriptionApi,
+  useStartConversationMutation, useSaveTranscriptLineMutation, useFinishConversationMutation,
   useGetConversationsQuery, useGetConversationQuery, useGetConversationsForPersonQuery,
 } from "./transcriptionApi";

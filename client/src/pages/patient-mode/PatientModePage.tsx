@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import {
   Brain, Camera, CameraOff, ScanFace, Loader2, CheckCircle2,
   AlertCircle, UserX, UserCheck, Zap, Mic, Square, MessageSquare,
-  Clock, ChevronDown, ChevronUp, RefreshCw, Activity,
+  Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History,
 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
@@ -121,70 +121,104 @@ function RecognitionCard({
 function PersonHistoryPanel({ personId, personName }: { personId: number; personName: string }) {
   const { data, isLoading } = useGetConversationsForPersonQuery(personId);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showAll, setShowAll]       = useState(false);
   const convs = data?.data?.conversations ?? [];
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-6">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+    <div className="flex items-center justify-center py-4">
+      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+      <span className="ml-2 text-xs text-muted-foreground">Loading past conversations…</span>
     </div>
   );
 
   if (convs.length === 0) return (
-    <div className="py-6 text-center">
-      <p className="text-sm text-muted-foreground">No previous conversations with {personName}.</p>
+    <div className="rounded-xl border border-dashed border-border px-4 py-3 text-center">
+      <p className="text-xs text-muted-foreground">No previous conversations with {personName}.</p>
     </div>
   );
 
+  // Most recent conversation that has a summary — shown prominently
+  const latestWithSummary = convs.find((c) => c.summary);
+  const olderConvs = showAll ? convs.slice(1) : [];
+
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-        Past conversations with {personName}
-      </p>
-      {convs.map((conv) => {
-        const isOpen = expandedId === conv.id;
-        return (
-          <div key={conv.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
-            <button
-              onClick={() => setExpandedId(isOpen ? null : conv.id)}
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Clock className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="text-sm font-medium truncate">{formatDate(conv.started_at)}</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 ml-2">
-                {conv.summary && (
-                  <span className="text-[10px] font-medium bg-foreground/8 px-2 py-0.5 rounded-full">
-                    Summary
-                  </span>
-                )}
-                {isOpen ? <ChevronUp className="size-3.5 text-muted-foreground" /> : <ChevronDown className="size-3.5 text-muted-foreground" />}
-              </div>
-            </button>
-
-            {isOpen && (
-              <div className="px-4 pb-4 space-y-3 border-t border-border">
-                {conv.summary && (
-                  <div className="mt-3 rounded-xl bg-foreground/5 border border-border p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">AI Summary</p>
-                    <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">{conv.summary}</div>
-                  </div>
-                )}
-                {conv.transcripts.length > 0 && (
-                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Transcript</p>
-                    {conv.transcripts.map((t) => (
-                      <p key={t.id} className="text-xs text-muted-foreground leading-relaxed border-l-2 border-border pl-2.5 py-0.5">
-                        {t.text}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+      {/* ── Latest summary card (always visible) ── */}
+      {latestWithSummary && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-emerald-500/20">
+            <Brain className="size-3.5 text-emerald-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              Last visit with {personName}
+            </span>
+            <span className="ml-auto text-[10px] text-muted-foreground">
+              {timeAgo(latestWithSummary.started_at)}
+            </span>
           </div>
-        );
-      })}
+          <div className="px-4 py-3">
+            <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+              {latestWithSummary.summary}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Older conversations (collapsible list) ── */}
+      {convs.length > 1 && (
+        <>
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+          >
+            <History className="size-3.5" />
+            <span>{showAll ? "Hide" : "Show"} {convs.length - 1} older conversation{convs.length - 1 !== 1 ? "s" : ""}</span>
+            {showAll ? <ChevronUp className="size-3 ml-auto" /> : <ChevronDown className="size-3 ml-auto" />}
+          </button>
+
+          {showAll && olderConvs.map((conv) => {
+            const isOpen = expandedId === conv.id;
+            return (
+              <div key={conv.id} className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+                <button
+                  onClick={() => setExpandedId(isOpen ? null : conv.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="text-sm font-medium truncate">{formatDate(conv.started_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {conv.summary && (
+                      <span className="text-[10px] font-medium bg-foreground/8 px-2 py-0.5 rounded-full">Summary</span>
+                    )}
+                    {isOpen ? <ChevronUp className="size-3.5 text-muted-foreground" /> : <ChevronDown className="size-3.5 text-muted-foreground" />}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 space-y-3 border-t border-border">
+                    {conv.summary && (
+                      <div className="mt-3 rounded-xl bg-foreground/5 border border-border p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">AI Summary</p>
+                        <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">{conv.summary}</div>
+                      </div>
+                    )}
+                    {conv.transcripts.length > 0 && (
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Transcript</p>
+                        {conv.transcripts.map((t) => (
+                          <p key={t.id} className="text-xs text-muted-foreground leading-relaxed border-l-2 border-border pl-2.5 py-0.5">
+                            {t.text}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
@@ -378,13 +412,15 @@ function TranscriptionPanel({
   patientId,
   patientName,
   personId,
+  autoStart,
 }: {
   patientId:   number;
   patientName: string;
   personId:    number | null;
+  autoStart:   boolean;
 }) {
   const { isRecording, transcripts, summary, error, startRecording, stopRecording } =
-    useTranscription(patientId, patientName, personId);
+    useTranscription(patientId, patientName, personId, { autoStart });
 
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -426,20 +462,28 @@ function TranscriptionPanel({
             <MessageSquare className="size-4 text-muted-foreground" />
             <span className="text-sm font-semibold">Live transcript</span>
           </div>
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={cn(
-              "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all",
-              isRecording
-                ? "bg-rose-500 text-white hover:bg-rose-600"
-                : "bg-foreground text-background hover:opacity-80",
+          <div className="flex items-center gap-2">
+            {/* Spinner shown briefly while auto-start is initialising */}
+            {autoStart && !isRecording && !error && (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Starting…
+              </span>
             )}
-          >
-            {isRecording
-              ? <><Square className="size-3" fill="currentColor" /> Stop</>
-              : <><Mic className="size-3" fill="currentColor" /> Start</>
-            }
-          </button>
+            <button
+              onClick={isRecording ? stopRecording : () => startRecording()}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all",
+                isRecording
+                  ? "bg-rose-500 text-white hover:bg-rose-600"
+                  : "bg-foreground text-background hover:opacity-80",
+              )}
+            >
+              {isRecording
+                ? <><Square className="size-3" fill="currentColor" /> Stop</>
+                : <><Mic className="size-3" fill="currentColor" /> Start</>
+              }
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[120px]">
@@ -529,12 +573,14 @@ export default function PatientModePage() {
               </div>
             )}
 
-            {/* Live transcription — takes remaining space */}
+            {/* Live transcription — takes remaining space.
+                autoStart=true makes it fire automatically once a face is recognised. */}
             <div className="flex-1 min-h-0">
               <TranscriptionPanel
                 patientId={session.patientId}
                 patientName={session.patientName}
                 personId={recognisedPersonId}
+                autoStart={recognisedPersonId !== null}
               />
             </div>
           </div>

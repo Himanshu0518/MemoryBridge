@@ -23,20 +23,24 @@ Fixes applied:
 
   3. pool_size / max_overflow — sensible limits for a small app.
 
-  4. connect_args            — pass sslmode=require explicitly so psycopg2
-                               always negotiates SSL (required by Neon).
-                               We also remove channel_binding from the URL
-                               because psycopg2 does not support it — it is
-                               handled automatically by the server.
+  4. sslmode=require          — already present in the DATABASE_URL query string,
+                               so Neon SSL is always negotiated.  We strip
+                               channel_binding (psycopg handles it automatically).
+
+Driver: psycopg (v3) — the modern async-capable PostgreSQL adapter for Python.
+       SQLAlchemy dialect: postgresql+psycopg
 """
 
-# Strip channel_binding from the URL — psycopg2 doesn't support this param
-# and it causes the SSL handshake to fail.
+# Strip channel_binding from the URL — psycopg3 handles it automatically.
 _db_url = DATABASE_URL.replace("&channel_binding=require", "").replace(
     "?channel_binding=require&", "?"
 ).replace(
     "?channel_binding=require", ""
 )
+
+# Switch dialect from the default psycopg2 to psycopg (v3)
+if _db_url.startswith("postgresql://"):
+    _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
     _db_url,
@@ -52,9 +56,10 @@ engine = create_engine(
     pool_size=5,        # keep up to 5 connections open
     max_overflow=10,    # allow up to 10 extra under load
 
-    # ── SSL ──────────────────────────────────────────────────────────────────
+    # ── Connection params ────────────────────────────────────────────────────
+    # psycopg v3 accepts libpq-style connect params via connect_timeout kwarg
+    # and TCP keepalive settings via the connection string options.
     connect_args={
-        "sslmode": "require",
         "connect_timeout": 10,      # fail fast instead of hanging
         "keepalives": 1,            # TCP keepalive — detects dead connections
         "keepalives_idle": 30,      # send keepalive after 30s of idle

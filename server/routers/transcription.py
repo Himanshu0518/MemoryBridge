@@ -31,6 +31,7 @@ REST endpoints
 import logging
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from server.config.db import get_db
@@ -78,6 +79,98 @@ def _serialise_conversation(conv: Conversation) -> dict:
 
 
 # ── REST routes ───────────────────────────────────────────────────────────────
+
+# ── Pydantic request bodies for client-side Deepgram endpoints ────────────────
+
+class StartConversationBody(BaseModel):
+    patient_id:   int
+    patient_name: str
+    person_id:    int | None = None
+
+
+class TranscriptLineBody(BaseModel):
+    conversation_id: int
+    text:            str
+
+
+class FinishConversationBody(BaseModel):
+    conversation_id: int
+    patient_name:    str
+    full_transcript: str   # entire joined transcript sent at the end
+
+
+@router.post("/start", response_model=ApiResponse)
+def start_conversation(
+    body: StartConversationBody,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(verify_token),
+):
+    """
+    Create a new Conversation row when the client starts recording.
+    Returns { conversation_id } — the client stores this and passes it
+    with every subsequent transcript-line POST.
+    """
+    conversation_id = transcription_service.rest_create_conversation(
+        patient_id=body.patient_id,
+        person_id=body.person_id,
+    )
+    return ApiResponse(
+        success=True,
+        message="Conversation started",
+        data={"conversation_id": conversation_id},
+    )
+
+
+@router.post("/transcript-line", response_model=ApiResponse)
+def save_transcript_line(
+    body: TranscriptLineBody,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(verify_token),
+):
+    """
+    Save a single transcript line produced by the client-side Deepgram SDK.
+    Called in real time as each final sentence arrives.
+    """
+    try:
+        saved = transcription_service.rest_save_transcript_line(
+            conversation_id=body.conversation_id,
+            text=body.text,
+        )
+    except Exception as exc:
+        raise ApiError(500, f"Failed to save transcript line: {exc}")
+
+    return ApiResponse(
+        success=True,
+        message="Transcript line saved",
+        data=saved,
+    )
+
+
+@router.post("/finish", response_model=ApiResponse)
+async def finish_conversation(
+    body: FinishConversationBody,
+    db: Session = Depends(get_db),
+    token_data: dict = Depends(verify_token),
+):
+    """
+    Called when the client stops recording.
+    Generates a Gemini summary from the full transcript, saves it, closes the
+    conversation, and returns the summary text.
+    """
+    try:
+        summary = await transcription_service.rest_finish_conversation(
+            conversation_id=body.conversation_id,
+            patient_name=body.patient_name,
+            full_transcript=body.full_transcript,
+        )
+    except Exception as exc:
+        raise ApiError(500, f"Failed to finish conversation: {exc}")
+
+    return ApiResponse(
+        success=True,
+        message="Conversation finished",
+        data={"summary": summary},
+    )
 
 @router.get("/conversations/{patient_id}", response_model=ApiResponse)
 def get_conversations(
