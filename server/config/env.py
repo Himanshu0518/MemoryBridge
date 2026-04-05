@@ -10,6 +10,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES   = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES",  "4
 REFRESH_TOKEN_EXPIRE_MINUTES  = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", "129600"))
 PATIENT_SESSION_EXPIRE_MINUTES = int(os.getenv("PATIENT_SESSION_EXPIRE_MINUTES", "480"))
 
+# Deepgram
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
+
+# Gemini (used by LangChain for summarisation)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing in .env")
 if not SECRET_KEY:

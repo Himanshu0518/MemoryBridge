@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, func
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from server.config.db import Base
 from pgvector.sqlalchemy import Vector
 
@@ -31,8 +30,8 @@ class Person(Base):
 
     is_known = Column(Boolean, default=False)
 
-    first_seen = Column(DateTime, default=datetime.utcnow)
-    last_seen = Column(DateTime, default=datetime.utcnow)
+    first_seen = Column(DateTime, server_default=func.now())
+    last_seen = Column(DateTime, server_default=func.now())
 
     patient = relationship("Patient", back_populates="persons")
 

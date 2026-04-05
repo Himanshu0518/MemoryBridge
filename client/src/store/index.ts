@@ -5,25 +5,17 @@ export type { RootState, AppDispatch } from "./store";
 export { useAppDispatch, useAppSelector } from "./hooks";
 
 export {
-  selectToken,
-  selectUser,
-  selectIsLoading,
-  selectIsLoggedIn,
+  selectToken, selectRefreshToken, selectUserId,
+  selectUser, selectIsLoading, selectIsLoggedIn,
+  selectPatientSession, selectPatientSessionLoading, selectIsInPatientMode,
 } from "./selectors";
 
 export {
-  setToken,
-  setUser,
-  clearAuth,
-  loginStart,
-  loginSuccess,
-  loginFailure,
-  profileLoaded,
+  setToken, setUser, clearAuth,
+  loginStart, loginSuccess, loginFailure,
+  tokensRefreshed, profileLoaded,
 } from "./authSlice";
 
 export {
-  sessionStart,
-  sessionOpened,
-  sessionClosed,
-  sessionLoadingFailed,
+  sessionStart, sessionOpened, sessionClosed, sessionLoadingFailed,
 } from "./patientSessionSlice";

@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from server.config.db import Base
+
 
 class Patient(Base):
     """
@@ -13,7 +13,7 @@ class Patient(Base):
     - known persons
     - unknown faces
     - embeddings
-    - future conversations
+    - conversations
     """
 
     __tablename__ = "patients"
@@ -28,12 +28,12 @@ class Patient(Base):
 
     diagnosis_level = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, server_default=func.now())
 
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     owner = relationship("User", back_populates="patients")
@@ -41,7 +41,13 @@ class Patient(Base):
     persons = relationship(
         "Person",
         back_populates="patient",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+    )
+
+    conversations = relationship(
+        "Conversation",
+        back_populates="patient",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self):

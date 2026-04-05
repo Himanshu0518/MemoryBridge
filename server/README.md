@@ -8,6 +8,9 @@ A project created with FastAPI CLI.
 
 ```bash
 uv run fastapi dev
+
+uv run uvicorn main:application --reload --host 127.0.0.1 --port 8000
+
 ```
 
 Visit http://localhost:8000

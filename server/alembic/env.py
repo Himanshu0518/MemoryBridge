@@ -9,9 +9,10 @@ from sqlalchemy import pool
 from alembic import context
 from server.config.db import Base
 from server.config.env import DATABASE_URL
-from server.models.user import User
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+# Import ALL models so Alembic autogenerate can detect every table
+from server.models import User, Patient, Person, FaceEmbedding  # noqa: F401
+from server.models import Conversation, Transcript, Summary      # noqa: F401
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

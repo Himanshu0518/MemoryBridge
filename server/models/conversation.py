@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, func
 from sqlalchemy.orm import relationship
 from server.config.db import Base
-from datetime import datetime
 
 
 class Conversation(Base):
@@ -11,13 +10,13 @@ class Conversation(Base):
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     person_id = Column(Integer, ForeignKey("persons.id"), nullable=True)
 
-    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime, server_default=func.now(), nullable=False)
     ended_at = Column(DateTime, nullable=True)
 
-    patient = relationship("Patient")
+    patient = relationship("Patient", back_populates="conversations")
     person = relationship("Person")
-    transcripts = relationship("Transcript", back_populates="conversation")
-    summary = relationship("Summary", back_populates="conversation", uselist=False)
+    transcripts = relationship("Transcript", back_populates="conversation", cascade="all, delete-orphan")
+    summary = relationship("Summary", back_populates="conversation", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Conversation(id={self.id}, patient_id={self.patient_id})>"
@@ -31,7 +30,7 @@ class Transcript(Base):
 
     speaker = Column(String, nullable=True)   # "patient" or "visitor"
     text = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = Column(DateTime, server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="transcripts")
 
@@ -46,7 +45,7 @@ class Summary(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False, unique=True)
 
     text = Column(Text, nullable=False)
-    generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    generated_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="summary")
 

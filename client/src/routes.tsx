@@ -14,29 +14,26 @@ import PatientModeGuard from "@/components/guards/PatientModeGuard";
 import LoginPage    from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 
-// ── Patients ──────────────────────────────────────────────────────────────────
+// ── Caregiver: Patients ───────────────────────────────────────────────────────
 import PatientsPage      from "@/pages/patients/PatientsPage";
 import PatientDetailPage from "@/pages/patients/PatientDetailPage";
 
-// ── Recognition ───────────────────────────────────────────────────────────────
+// ── Caregiver: Recognition ────────────────────────────────────────────────────
 import RecognitionHubPage from "@/pages/recognition/RecognitionHubPage";
 import RecognitionPage    from "@/pages/recognition/RecognitionPage";
 
-// ── Patient mode ──────────────────────────────────────────────────────────────
-import PatientModePage from "@/pages/patient-mode/PatientModePage";
+// ── Patient mode pages ────────────────────────────────────────────────────────
+import PatientModePage        from "@/pages/patient-mode/PatientModePage";
+import PatientRecognitionPage from "@/pages/patient-mode/PatientRecognitionPage";
+import PatientHistoryPage     from "@/pages/patient-mode/PatientHistoryPage";
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 function NotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
-      <span className="text-6xl font-bold tracking-tighter">404</span>
-      <p className="text-sm text-muted-foreground">
-        The page you&apos;re looking for doesn&apos;t exist.
-      </p>
-      <a
-        href="/patients"
-        className="text-sm font-medium underline underline-offset-4 hover:opacity-70 transition-opacity"
-      >
+      <span className="text-6xl font-bold tracking-tighter opacity-20">404</span>
+      <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
+      <a href="/patients" className="text-sm font-medium underline underline-offset-4 hover:opacity-70 transition-opacity">
         Go home
       </a>
     </div>
@@ -50,27 +47,20 @@ export const router = createBrowserRouter([
     Component: RootLayout,
     children: [
       { index: true, element: <Navigate to="/patients" replace /> },
-
       {
         element: <ProtectedRoute />,
         children: [
-          // Patients
-          { path: "patients",     Component: PatientsPage      },
-          { path: "patients/:id", Component: PatientDetailPage },
-
-          // Recognition
-          { path: "recognition",            Component: RecognitionHubPage },
-          { path: "recognition/:patientId", Component: RecognitionPage    },
+          { path: "patients",                      Component: PatientsPage        },
+          { path: "patients/:id",                  Component: PatientDetailPage   },
+          { path: "recognition",                   Component: RecognitionHubPage  },
+          { path: "recognition/:patientId",         Component: RecognitionPage     },
         ],
       },
-
       { path: "*", Component: NotFound },
     ],
   },
 
-  // ── Patient mode (session-gated, own layout) ──────────────────────────────
-  // Intentionally outside RootLayout so the patient gets a clean full-screen
-  // experience with no caregiver navbar.
+  // ── Patient mode (session-gated, own sidebar layout) ──────────────────────
   {
     path: "/patient-mode",
     element: <PatientModeGuard />,
@@ -78,7 +68,9 @@ export const router = createBrowserRouter([
       {
         Component: PatientModeLayout,
         children: [
-          { index: true, Component: PatientModePage },
+          { index: true,             Component: PatientModePage        },  // Home — split camera + transcript
+          { path: "recognition",     Component: PatientRecognitionPage },  // Dedicated recognition page
+          { path: "history",         Component: PatientHistoryPage     },  // All past conversations
         ],
       },
     ],
@@ -92,9 +84,9 @@ export const router = createBrowserRouter([
       {
         Component: AuthLayout,
         children: [
-          { index: true, element: <Navigate to="/auth/login" replace /> },
-          { path: "login",    Component: LoginPage    },
-          { path: "register", Component: RegisterPage },
+          { index: true,          element: <Navigate to="/auth/login" replace /> },
+          { path: "login",        Component: LoginPage    },
+          { path: "register",     Component: RegisterPage },
         ],
       },
     ],
