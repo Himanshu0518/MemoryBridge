@@ -29,6 +29,7 @@ class Person(Base):
     relation = Column(String, nullable=True)
 
     is_known = Column(Boolean, default=False)
+    image_url = Column(String, nullable=True)
     pending_verification = Column(Boolean, default=False)  # patient suggested name/relation, awaiting caregiver approval
     suggested_name = Column(String, nullable=True)
     suggested_relation = Column(String, nullable=True)

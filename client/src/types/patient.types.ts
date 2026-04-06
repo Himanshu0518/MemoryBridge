@@ -35,6 +35,7 @@ export interface Person {
   suggested_relation: string | null;
   first_seen: string;
   last_seen: string;
+  image_url: string | null;
 }
 
 export interface CreatePersonPayload {

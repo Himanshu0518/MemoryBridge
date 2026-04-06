@@ -8,6 +8,7 @@ from server.core.api_response import ApiResponse
 from server.schemas.face import StoreFaceResponse, MatchFaceResponse
 from server.services import face_service
 from server.dependencies.auth import verify_token
+from server.dependencies.uploadFile import upload_file
 from server.models.person import Person
 
 router = APIRouter(prefix="/recognition", tags=["Face Recognition"])
@@ -34,8 +35,11 @@ async def store_face(
     image_bytes = await file.read()
 
     try:
+        # Upload the image to Cloudinary
+        image_url = upload_file(image_bytes, folder=f"known_faces/{patient_id}")
+
         person, embeddings = face_service.addPerson(
-            db, patient_id, name, relation, True, image_bytes
+            db, patient_id, name, relation, True, image_bytes, image_url
         )
     except ValueError as e:
         raise ApiError(status_code=400, message=str(e))
@@ -48,6 +52,7 @@ async def store_face(
             "name":             person.name,
             "relation":         person.relation,
             "is_known":         person.is_known,
+            "image_url":        person.image_url,
             "embeddings_stored": len(embeddings),
             "embedding_ids":    [e.id for e in embeddings],
         },
@@ -90,12 +95,16 @@ async def match_face(
     """
     Identify who is in a photo by comparing against all stored faces for a patient.
 
-    - **recognised = True**  → returns person name, relation, and similarity score
-    - **recognised = False** → creates an UnknownFace record and returns its ID
+    - **recognised = True**  → returns person name, relation, similarity score, and image_url
+    - **recognised = False** → uploads photo to Cloudinary, creates an UnknownFace record, returns its ID + image_url
     - **error = no_face_detected** → no face found in the image
     """
     image_bytes = await file.read()
-    result = face_service.match_face(db, patient_id, image_bytes)
+
+    # Upload the live capture to Cloudinary so it can be shown in the UI
+    image_url = upload_file(image_bytes, folder=f"captures/{patient_id}")
+
+    result = face_service.match_face(db, patient_id, image_bytes, image_url)
 
     if result.get("error") == "no_face_detected":
         return MatchFaceResponse(
@@ -134,6 +143,7 @@ def list_known_persons(
                 "id":       p.id,
                 "name":     p.name,
                 "relation": p.relation,
+                "image_url": p.image_url,
             }
             for p in persons
         ],
@@ -151,8 +161,11 @@ async def store_unknown_face(
     image_bytes = await file.read()
 
     try:
+        # Upload the image to Cloudinary
+        image_url = upload_file(image_bytes, folder=f"unknown_faces/{patient_id}")
+
         person, embeddings = face_service.addPerson(
-            db, patient_id, None, None, False, image_bytes
+            db, patient_id, None, None, False, image_bytes, image_url
         )
     except ValueError as e:
         raise ApiError(status_code=400, message=str(e))
@@ -165,6 +178,7 @@ async def store_unknown_face(
             "name":             person.name,
             "relation":         person.relation,
             "is_known":         person.is_known,
+            "image_url":        person.image_url,
             "embeddings_stored": len(embeddings),
             "embedding_ids":    [e.id for e in embeddings],
         },

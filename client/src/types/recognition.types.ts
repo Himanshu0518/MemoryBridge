@@ -5,6 +5,7 @@ export interface StoreFaceData {
   name: string;
   relation: string;
   is_known: boolean;
+  image_url?: string;
   embeddings_stored: number;
   embedding_ids: number[];
 }
@@ -23,11 +24,13 @@ export interface MatchFaceRecognised {
   name: string;
   relation: string;
   similarity: number;
+  image_url?: string;
 }
 
 export interface MatchFaceUnknown {
   recognised: false;
   unknown_face_id?: number;
+  image_url?: string;
   error?: "no_face_detected";
 }
 
@@ -45,6 +48,7 @@ export interface KnownPerson {
   id: number;
   name: string;
   relation: string;
+  image_url?: string;
 }
 
 export interface KnownPersonsResponse {

@@ -44,9 +44,13 @@ function Result({ data, onRetry }: { data: MatchFaceData | undefined; onRetry: (
   if (isRec && "name" in data) return (
     <div className="flex flex-col items-center gap-6 py-10 text-center">
       <div className="relative">
-        <div className="flex size-24 items-center justify-center rounded-2xl bg-emerald-500/10 ring-4 ring-emerald-500/25">
-          <UserCheck className="size-12 text-emerald-600" />
-        </div>
+        {data.image_url ? (
+          <img src={data.image_url} alt={data.name} className="size-24 rounded-2xl object-cover ring-4 ring-emerald-500/25" />
+        ) : (
+          <div className="flex size-24 items-center justify-center rounded-2xl bg-emerald-500/10 ring-4 ring-emerald-500/25">
+            <UserCheck className="size-12 text-emerald-600" />
+          </div>
+        )}
         <div className="absolute -bottom-2 -right-2 flex size-9 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-card">
           <CheckCircle2 className="size-5 text-white" />
         </div>

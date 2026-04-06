@@ -183,6 +183,21 @@ function LabelUnknownModal({
           </p>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-4 space-y-3">
+          {person.image_url ? (
+            <div className="flex justify-center pb-2">
+              <img 
+                src={person.image_url} 
+                alt="Unknown face" 
+                className="size-24 rounded-full object-cover ring-2 ring-border shadow-sm" 
+              />
+            </div>
+          ) : (
+            <div className="flex justify-center pb-2">
+              <div className="flex size-24 items-center justify-center rounded-full bg-amber-500/10 ring-2 ring-border shadow-sm">
+                <UserX className="size-8 text-amber-600" />
+              </div>
+            </div>
+          )}
           <FormField label="Full name" error={errors.name?.message} htmlFor="l-name" required>
             <Input id="l-name" placeholder="Rahul Singh" {...register("name")} />
           </FormField>
@@ -235,9 +250,17 @@ function PendingVerificationCard({
 
   return (
     <div className="rounded-lg border border-amber-400/40 bg-amber-50/50 dark:bg-amber-500/5 px-4 py-3 flex items-center gap-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
-        <Clock className="size-4 text-amber-600" />
-      </div>
+      {person.image_url ? (
+        <img 
+          src={person.image_url} 
+          alt={person.suggested_name ?? "Unknown"} 
+          className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border" 
+        />
+      ) : (
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+          <Clock className="size-4 text-amber-600" />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium">
           {person.suggested_name}
@@ -293,15 +316,23 @@ function PersonRow({
     <>
       <div className="group flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/20">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-full",
-            person.is_known ? "bg-foreground/10" : "bg-amber-500/10"
-          )}>
-            {person.is_known
-              ? <UserCheck className="size-4 text-foreground" />
-              : <UserX className="size-4 text-amber-600" />
-            }
-          </div>
+          {person.image_url ? (
+            <img 
+              src={person.image_url} 
+              alt={person.name ?? "Unknown person"} 
+              className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border" 
+            />
+          ) : (
+            <div className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-full",
+              person.is_known ? "bg-foreground/10" : "bg-amber-500/10"
+            )}>
+              {person.is_known
+                ? <UserCheck className="size-4 text-foreground" />
+                : <UserX className="size-4 text-amber-600" />
+              }
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">
               {person.is_known
