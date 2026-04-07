@@ -45,9 +45,13 @@ function MatchResult({
     return (
       <div className="flex flex-col items-center gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-6 py-8 text-center">
         <div className="relative">
-          <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
-            <UserCheck className="size-8 text-emerald-600" />
-          </div>
+          {data.image_url ? (
+            <img src={data.image_url} alt={data.name} className="size-16 rounded-full object-cover ring-2 ring-emerald-500/20" />
+          ) : (
+            <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10">
+              <UserCheck className="size-8 text-emerald-600" />
+            </div>
+          )}
           <div className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-emerald-500">
             <CheckCircle2 className="size-3.5 text-white" />
           </div>

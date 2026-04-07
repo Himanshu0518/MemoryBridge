@@ -151,9 +151,17 @@ function RecognitionCard({
   if (isRec && "name" in d) return (
     <div className="flex flex-col items-center gap-5 py-6 text-center">
       <div className="relative">
-        <div className="flex size-20 items-center justify-center rounded-2xl bg-emerald-500/10 ring-4 ring-emerald-500/20">
-          <UserCheck className="size-10 text-emerald-600" />
-        </div>
+        {d.image_url ? (
+          <img
+            src={d.image_url}
+            alt={d.name}
+            className="size-20 rounded-2xl object-cover ring-4 ring-emerald-500/20"
+          />
+        ) : (
+          <div className="flex size-20 items-center justify-center rounded-2xl bg-emerald-500/10 ring-4 ring-emerald-500/20">
+            <UserCheck className="size-10 text-emerald-600" />
+          </div>
+        )}
         <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-card">
           <CheckCircle2 className="size-4 text-white" />
         </div>

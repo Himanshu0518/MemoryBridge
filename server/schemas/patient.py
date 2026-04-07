@@ -67,6 +67,7 @@ class PersonResponse(BaseModel):
     suggested_relation: Optional[str] = None
     first_seen: datetime
     last_seen: datetime
+    image_url: Optional[str] = None
 
     class Config:
         from_attributes = True

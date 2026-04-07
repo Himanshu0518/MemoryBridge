@@ -16,6 +16,11 @@ DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 # Gemini (used by LangChain for summarisation)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
+# Cloudinary
+CLOUDINARY_CLOUD_NAME  = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY     = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET  = os.getenv("CLOUDINARY_API_SECRET", "")
+
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing in .env")
 if not SECRET_KEY:

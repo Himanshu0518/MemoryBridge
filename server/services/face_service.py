@@ -34,6 +34,7 @@ def _all_embeddings_for_patient(db: Session, patient_id: int) -> list[dict]:
             "name":         person.name,
             "relation":     person.relation,
             "is_known":     person.is_known,
+            "image_url":    person.image_url,
             "embedding":    face_embed.embedding,
         }
         for face_embed, person in rows
@@ -49,6 +50,7 @@ def addPerson(
     relation: str,
     is_known: bool,
     image_bytes: bytes,
+    image_url: str = None,
 ) -> tuple[Person, list[FaceEmbedding]]:
     """
     Create a new Person row, detect all faces in the image,
@@ -60,6 +62,7 @@ def addPerson(
         name=name,
         relation=relation,
         is_known=is_known,
+        image_url=image_url,
     )
     db.add(person)
     db.commit()
@@ -103,6 +106,7 @@ def match_face(
     db: Session,
     patient_id: int,
     image_bytes: bytes,
+    image_url: str = None,
 ) -> dict:
     """
     Detect the face in image_bytes and compare it against every stored
@@ -141,6 +145,7 @@ def match_face(
             "name":       best_match["name"],
             "relation":   best_match["relation"],
             "is_known":   best_match["is_known"],
+            "image_url":  best_match["image_url"],
             "similarity": round(best_score, 4),
             "confidence": round(detection_confidence, 4),
         }
@@ -151,6 +156,7 @@ def match_face(
         name=None,
         relation=None,
         is_known=False,
+        image_url=image_url,   # store the Cloudinary URL of the captured frame
     )
     db.add(unknown)
     db.flush()
@@ -166,6 +172,7 @@ def match_face(
     return {
         "recognised":      False,
         "unknown_face_id": unknown.id,
+        "image_url":       image_url,   # send back so the frontend can display it
         "similarity":      round(best_score, 4),
         "confidence":      round(detection_confidence, 4),
         "error":           None,
