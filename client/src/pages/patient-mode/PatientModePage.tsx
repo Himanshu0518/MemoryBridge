@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
-import { useMatchFaceMutation, useGetConversationsForPersonQuery, useSuggestIdentityMutation } from "@/services";
+import { useMatchFaceMutation, useGetConversationsForPersonQuery, useSuggestIdentityMutation, useRecordLocationMutation } from "@/services";
 import type { MatchFaceData } from "@/types";
 import { useTranscription } from "@/hooks/useTranscription";
 import { cn } from "@/lib/utils";
@@ -607,9 +607,38 @@ export default function PatientModePage() {
   const session = useAppSelector(selectPatientSession);
   const [recognisedPersonId,   setRecognisedPersonId]   = useState<number | null>(null);
   const [recognisedPersonName, setRecognisedPersonName] = useState<string>("");
+  const [recordLocation] = useRecordLocationMutation();
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // Real-time location tracking for the active patient session format
+  useEffect(() => {
+    if (!session?.patientId) return;
+    
+    // We request the patient's device coordinate and continuously ping the server
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        recordLocation({
+          patient_id: session.patientId,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.error("Location tracking error: ", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [session?.patientId, recordLocation]);
 
   if (!session) return null;
 

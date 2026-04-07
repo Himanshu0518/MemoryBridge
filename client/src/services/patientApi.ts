@@ -109,6 +109,31 @@ export const patientApi = api.injectEndpoints({
         { type: "Recognition", id: `KNOWN-${patientId}` },
       ],
     }),
+    // ── GET /tracking/patients/:patientId/locations ──────────────────────────────
+    getLocations: builder.query<any[], number>({
+      query: (patientId) => `/tracking/patients/${patientId}/locations`,
+      providesTags: (result, _err, patientId) =>
+        result
+          ? [
+              ...result.map(({ id }: { id: number }) => ({ type: "Location" as const, id })),
+              { type: "Location", id: `LIST-${patientId}` },
+            ]
+          : [{ type: "Location", id: `LIST-${patientId}` }],
+    }),
+
+    // ── POST /tracking/locations ─────────────────────────────────────────────
+    recordLocation: builder.mutation<any, { patient_id: number; latitude: number; longitude: number }>({
+      query: (payload) => ({
+        url: "/tracking/locations",
+        method: "POST",
+        body: payload,
+      }),
+      // Assuming we invalidate if we're also viewing the map at the same time,
+      // but usually the map polls. Still safe to invalidate.
+      invalidatesTags: (_result, _err, { patient_id }) => [
+        { type: "Location", id: `LIST-${patient_id}` }
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -123,4 +148,6 @@ export const {
   useCreatePersonMutation,
   useUpdatePersonMutation,
   useDeletePersonMutation,
+  useGetLocationsQuery,
+  useRecordLocationMutation,
 } = patientApi;

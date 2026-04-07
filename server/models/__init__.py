@@ -5,6 +5,7 @@ from server.models.user import User
 from server.models.patient import Patient
 from server.models.person import Person, FaceEmbedding
 from server.models.conversation import Conversation, Transcript, Summary
+from server.models.location import Location
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "Conversation",
     "Transcript",
     "Summary",
+    "Location",
 ]

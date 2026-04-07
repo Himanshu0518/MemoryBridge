@@ -12,6 +12,7 @@ export {
   useGetPatientsQuery, useGetPatientQuery,
   useCreatePatientMutation, useUpdatePatientMutation, useDeletePatientMutation,
   useGetPersonsQuery, useCreatePersonMutation, useUpdatePersonMutation, useDeletePersonMutation,
+  useGetLocationsQuery, useRecordLocationMutation,
 } from "./patientApi";
 
 export {

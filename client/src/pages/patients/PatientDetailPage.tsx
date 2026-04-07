@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
 import { cn } from "@/lib/utils";
+import { PatientTrackingMap } from "./PatientTrackingMap";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 const addFaceSchema = z.object({
@@ -567,6 +568,11 @@ export default function PatientDetailPage() {
               </Button>
             </div>
           )}
+
+          {/* Tracking Map Section */}
+          <section>
+            <PatientTrackingMap patientId={patientId} />
+          </section>
         </div>
       )}
 

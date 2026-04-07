@@ -15,3 +15,4 @@ export type { PatientSessionData, PatientSession } from "./patientSession.types"
 export type {
   ConversationRecord, ConversationTranscript, ConversationPerson, PersonConversationsData,
 } from "./conversation.types";
+export type { TrackingLocation } from "./location.types";
