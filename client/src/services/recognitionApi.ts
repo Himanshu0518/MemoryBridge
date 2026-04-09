@@ -83,6 +83,18 @@ export const recognitionApi = api.injectEndpoints({
         { type: "Person", id: `LIST-${patientId}` },
       ],
     }),
+
+    // ── POST /recognition/extract-identity ───────────────────────────────────────
+    extractIdentity: builder.mutation<
+      { data: { name: string; relation: string } },
+      { text: string }
+    >({
+      query: ({ text }) => ({
+        url: `/recognition/extract-identity`,
+        method: "POST",
+        body: { text },
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -93,4 +105,6 @@ export const {
   useGetKnownPersonsQuery,
   useStoreUnknownFaceMutation,
   useSuggestIdentityMutation,
+  useExtractIdentityMutation,
 } = recognitionApi;
+

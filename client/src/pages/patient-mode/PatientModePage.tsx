@@ -2,11 +2,11 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import {
   Brain, Camera, CameraOff, ScanFace, Loader2, CheckCircle2,
   AlertCircle, UserX, UserCheck, Zap, Mic, Square, MessageSquare,
-  Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History, Send,
+  Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History, Send, Volume2
 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
-import { useMatchFaceMutation, useGetConversationsForPersonQuery, useSuggestIdentityMutation } from "@/services";
+import { useMatchFaceMutation, useGetConversationsForPersonQuery, useSuggestIdentityMutation, useExtractIdentityMutation } from "@/services";
 import type { MatchFaceData } from "@/types";
 import { useTranscription } from "@/hooks/useTranscription";
 import { cn } from "@/lib/utils";
@@ -55,10 +55,57 @@ function SuggestIdentityForm({
   patientId: number;
   onRetry: () => void;
 }) {
+  const session = useAppSelector(selectPatientSession);
   const [name, setName]         = useState("");
   const [relation, setRelation] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(true);
+  const [isListening, setIsListening] = useState(false);
+
   const [suggestIdentity, { isLoading }] = useSuggestIdentityMutation();
+  const [extractIdentity, { isLoading: isExtracting }] = useExtractIdentityMutation();
+
+  useEffect(() => {
+    if (!session?.patientName || !("speechSynthesis" in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+    const msg = new SpeechSynthesisUtterance(`Hello! I don't recognize you. For ${session.patientName}'s memory, could you please state your name and relation?`);
+    msg.rate = 0.95;
+    msg.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(msg);
+    return () => window.speechSynthesis.cancel();
+  }, [session?.patientName]);
+
+  const handleMicrophoneClick = () => {
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.onresult = async (event: any) => {
+      setIsListening(false);
+      const transcript = event.results[0][0].transcript;
+      try {
+        const res = await extractIdentity({ text: transcript }).unwrap();
+        if (res.data?.name) setName(res.data.name);
+        if (res.data?.relation) setRelation(res.data.relation);
+      } catch (err) {
+        console.error("Failed to extract identity:", err);
+      }
+    };
+    recognition.start();
+  };
 
   const handleSubmit = async () => {
     if (!name.trim() || !relation.trim()) return;
@@ -82,12 +129,49 @@ function SuggestIdentityForm({
   return (
     <div className="flex flex-col gap-4 py-4 px-2">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
-          <UserX className="size-7 text-muted-foreground" />
+        <div className="relative">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-500/10">
+            <UserX className="size-7 text-amber-500" />
+          </div>
+          {isSpeaking && (
+            <div className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-blue-500 ring-2 ring-card animate-pulse">
+              <Volume2 className="size-3 text-white" />
+            </div>
+          )}
         </div>
-        <p className="font-bold text-base">Not recognised</p>
-        <p className="text-sm text-muted-foreground">Do you know this person? Tell us who they are.</p>
+        <p className="font-bold text-base">Hello! Please introduce yourself</p>
+        <p className="text-sm text-muted-foreground">
+          {session?.patientName ? `Help us remember you for ${session.patientName}.` : "To help with memory support."}
+        </p>
       </div>
+
+      <div className="flex justify-center my-2">
+        <button
+          onClick={handleMicrophoneClick}
+          disabled={isSpeaking || isListening || isExtracting}
+          className={cn(
+            "flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all",
+            isListening || isExtracting
+              ? "bg-rose-500 text-white animate-pulse"
+              : "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+          )}
+        >
+          {isExtracting ? (
+            <><Loader2 className="size-4 animate-spin" /> Processing...</>
+          ) : isListening ? (
+             <><Mic className="size-4" /> Listening...</>
+          ) : (
+            <><Mic className="size-4" /> Speak your name & relation</>
+          )}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 w-full max-w-xs mx-auto">
+         <div className="h-px bg-border flex-1"></div>
+         <span className="text-xs text-muted-foreground uppercase font-bold">Or type</span>
+         <div className="h-px bg-border flex-1"></div>
+      </div>
+
       <div className="space-y-2">
         <input
           value={name}
@@ -132,6 +216,14 @@ function RecognitionCard({
   const d = result.data;
   const noFace = !d || ("error" in d && d.error === "no_face_detected");
   const isRec  = d && "recognised" in d && d.recognised;
+  const personId = isRec && "person_id" in d ? d.person_id : 0;
+
+  const { data: convData, isLoading: loadingConvs } = useGetConversationsForPersonQuery(
+    personId,
+    { skip: !personId }
+  );
+  const convs = convData?.data?.conversations ?? [];
+  const latestSummary = convs.find((c: any) => c.summary);
 
   if (noFace) return (
     <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -149,7 +241,7 @@ function RecognitionCard({
   );
 
   if (isRec && "name" in d) return (
-    <div className="flex flex-col items-center gap-5 py-6 text-center">
+    <div className="flex flex-col items-center gap-4 py-6 text-center">
       <div className="relative">
         {d.image_url ? (
           <img
@@ -166,6 +258,7 @@ function RecognitionCard({
           <CheckCircle2 className="size-4 text-white" />
         </div>
       </div>
+      
       <div>
         <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-600 mb-1">Recognised</p>
         <p className="text-3xl font-bold">{d.name}</p>
@@ -173,7 +266,26 @@ function RecognitionCard({
           {d.relation}
         </span>
       </div>
-      <div className="w-full max-w-[200px]">
+
+      {loadingConvs ? (
+        <div className="w-full flex justify-center py-2">
+          <Loader2 className="size-4 animate-spin text-emerald-500/60" />
+        </div>
+      ) : latestSummary ? (
+        <div className="w-full text-left rounded-xl border border-emerald-500/30 bg-emerald-500/5 overflow-hidden mx-4">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-emerald-500/20">
+            <Brain className="size-3.5 text-emerald-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+              Last Visit Memory
+            </span>
+          </div>
+          <div className="px-3 py-2 text-xs text-foreground leading-relaxed whitespace-pre-line">
+            {latestSummary.summary}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="w-full max-w-[200px] mt-2">
         <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
           <span>Confidence</span>
           <span className="font-bold text-foreground">{Math.round(d.similarity * 100)}%</span>
@@ -182,7 +294,7 @@ function RecognitionCard({
           <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${Math.round(d.similarity * 100)}%` }} />
         </div>
       </div>
-      <button onClick={onRetry} className="flex items-center gap-2 rounded-xl border border-border px-5 py-2 text-sm font-semibold hover:bg-muted transition-colors">
+      <button onClick={onRetry} className="mt-2 flex items-center gap-2 rounded-xl border border-border px-5 py-2 text-sm font-semibold hover:bg-muted transition-colors">
         <ScanFace className="size-4" /> Scan again
       </button>
     </div>

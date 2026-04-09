@@ -59,6 +59,28 @@ async def store_face(
     )
 
 
+class ExtractIdentityBody(BaseModel):
+    text: str
+
+
+@router.post("/extract-identity", response_model=ApiResponse)
+async def extract_identity(
+    body: ExtractIdentityBody,
+    token_data: dict = Depends(verify_token),
+):
+    """
+    Extracts name and relation from a spoken transcript using an LLM.
+    """
+    from server.ai.identity_pipeline import extract_identity_from_transcript
+    extracted = await extract_identity_from_transcript(body.text)
+    return ApiResponse(
+        success=True,
+        message="Identity extracted successfully",
+        data={"name": extracted["name"], "relation": extracted["relation"]}
+    )
+
+
+
 class SuggestIdentityBody(BaseModel):
     suggested_name: str
     suggested_relation: str
