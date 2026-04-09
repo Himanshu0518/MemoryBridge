@@ -396,6 +396,7 @@ export default function PatientDetailPage() {
   const { data: personsData, isLoading: loadingPersons } = useGetPersonsQuery(patientId);
   const [showAddFace, setShowAddFace] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // ── Patient session ────────────────────────────────────────────────────────
   const [startPatientSession, { isLoading: startingSession }] =
@@ -406,8 +407,11 @@ export default function PatientDetailPage() {
     try {
       await startPatientSession(patientId).unwrap();
       // Listener in store.ts dispatches sessionOpened → Redux updated.
-      // Navigate to the patient mode screen.
-      navigate("/patient-mode");
+      // Transient success effect before navigating
+      setIsSwitching(true);
+      setTimeout(() => {
+        navigate("/patient-mode");
+      }, 800);
     } catch (err: unknown) {
       const msg = (err as { data?: { message?: string } })?.data?.message;
       setSessionError(msg ?? "Failed to start patient session. Please try again.");
@@ -482,13 +486,19 @@ export default function PatientDetailPage() {
           <Button
             size="sm"
             onClick={handleSwitchToPatient}
-            disabled={startingSession}
-            className="gap-1.5"
+            disabled={startingSession || isSwitching}
+            className={cn(
+              "gap-1.5 transition-all duration-300",
+              isSwitching && "bg-emerald-500 hover:bg-emerald-600 text-white ring-2 ring-emerald-500/30 ring-offset-2 ring-offset-background"
+            )}
           >
-            {startingSession
-              ? <><Loader2 className="size-4 animate-spin" /> Starting…</>
-              : <><MonitorSmartphone className="size-4" /> Switch to patient</>
-            }
+            {isSwitching ? (
+              <><CheckCircle2 className="size-4" /> Switching...</>
+            ) : startingSession ? (
+              <><Loader2 className="size-4 animate-spin" /> Starting…</>
+            ) : (
+              <><MonitorSmartphone className="size-4" /> Switch to patient</>
+            )}
           </Button>
 
           {/* Secondary actions */}
