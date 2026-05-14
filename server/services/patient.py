@@ -103,6 +103,8 @@ def createPerson(
         name=payload.name,
         relation=payload.relation,
         is_known=payload.is_known,
+        is_family=payload.is_family,
+        family_member_email=payload.family_member_email,
     )
     db.add(person)
     db.commit()
@@ -151,6 +153,10 @@ def updatePerson(
         person.relation = payload.relation
     if payload.is_known is not None:
         person.is_known = payload.is_known
+    if payload.is_family is not None:
+        person.is_family = payload.is_family
+    if payload.family_member_email is not None:
+        person.family_member_email = payload.family_member_email
     if payload.pending_verification is not None:
         person.pending_verification = payload.pending_verification
     if payload.suggested_name is not None:

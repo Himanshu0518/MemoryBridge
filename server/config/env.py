@@ -25,3 +25,10 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL is missing in .env")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY is missing in .env")
+
+# Email (SMTP) — for family visit notifications
+SMTP_HOST     = os.getenv("SMTP_HOST",     "smtp.gmail.com")
+SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER     = os.getenv("SMTP_USER",     "")   # your Gmail address
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")   # Gmail App Password
+SMTP_FROM     = os.getenv("SMTP_FROM",     SMTP_USER)

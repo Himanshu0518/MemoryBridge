@@ -29,6 +29,8 @@ class Person(Base):
     relation = Column(String, nullable=True)
 
     is_known = Column(Boolean, default=False)
+    is_family = Column(Boolean, default=False)  # caregiver-designated family member
+    family_member_email = Column(String, nullable=True)  # email to notify on visit
     image_url = Column(String, nullable=True)
     pending_verification = Column(Boolean, default=False)  # patient suggested name/relation, awaiting caregiver approval
     suggested_name = Column(String, nullable=True)

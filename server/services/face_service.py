@@ -34,6 +34,7 @@ def _all_embeddings_for_patient(db: Session, patient_id: int) -> list[dict]:
             "name":         person.name,
             "relation":     person.relation,
             "is_known":     person.is_known,
+            "is_family":    person.is_family,
             "image_url":    person.image_url,
             "embedding":    face_embed.embedding,
         }
@@ -145,6 +146,7 @@ def match_face(
             "name":       best_match["name"],
             "relation":   best_match["relation"],
             "is_known":   best_match["is_known"],
+            "is_family":  best_match["is_family"],
             "image_url":  best_match["image_url"],
             "similarity": round(best_score, 4),
             "confidence": round(detection_confidence, 4),

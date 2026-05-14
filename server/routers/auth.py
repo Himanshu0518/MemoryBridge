@@ -58,8 +58,9 @@ def switch_to_patient(
         success=True,
         message=f"Patient session started for {patient.name}",
         data={
-            "patient_id": patient.id,
-            "patient_name": patient.name,
-            "patient_token": patient_token,
+            "patient_id":       patient.id,
+            "patient_name":     patient.name,
+            "patient_token":    patient_token,
+            "diagnosis_level":  patient.diagnosis_level,
         },
     )

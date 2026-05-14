@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 from server.config.db import get_db
 from server.core.api_error import ApiError
 from server.core.api_response import ApiResponse
 from server.schemas.face import StoreFaceResponse, MatchFaceResponse
 from server.services import face_service
+from server.services.email_service import send_visit_notification
 from server.dependencies.auth import verify_token
 from server.dependencies.uploadFile import upload_file
 from server.models.person import Person
+from server.models.patient import Patient
 
 router = APIRouter(prefix="/recognition", tags=["Face Recognition"])
 
@@ -114,6 +120,50 @@ async def match_face(
         )
 
     if result["recognised"]:
+        # Fire email notification to ALL registered family members of this patient
+        patient_obj = db.get(Patient, patient_id)
+        if patient_obj:
+            family_members = (
+                db.query(Person)
+                .filter(
+                    Person.patient_id == patient_id,
+                    Person.is_family == True,
+                    Person.family_member_email != None,
+                    Person.family_member_email != "",
+                )
+                .all()
+            )
+
+            if family_members:
+                visitor_name   = result.get("name") or "Someone"
+                visitor_relation = result.get("relation") or "visitor"
+                visitor_image  = result.get("image_url")
+                patient_name   = patient_obj.name
+
+                logger.info(
+                    "Sending visit notification for patient %s to %d family member(s)",
+                    patient_name, len(family_members),
+                )
+
+                for member in family_members:
+                    kwargs = dict(
+                        to_email=member.family_member_email,
+                        visitor_name=visitor_name,
+                        visitor_relation=visitor_relation,
+                        patient_name=patient_name,
+                        visitor_image_url=visitor_image,
+                    )
+                    threading.Thread(
+                        target=send_visit_notification,
+                        kwargs=kwargs,
+                        daemon=True,
+                    ).start()
+            else:
+                logger.info(
+                    "No family members with email registered for patient %d — skipping notification.",
+                    patient_id,
+                )
+
         return MatchFaceResponse(
             success=True,
             message=f"Recognised as {result['name']} ({result['relation']}).",

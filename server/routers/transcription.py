@@ -112,6 +112,7 @@ def start_conversation(
     """
     conversation_id = transcription_service.rest_create_conversation(
         patient_id=body.patient_id,
+        patient_name=body.patient_name,
         person_id=body.person_id,
     )
     return ApiResponse(
@@ -122,7 +123,7 @@ def start_conversation(
 
 
 @router.post("/transcript-line", response_model=ApiResponse)
-def save_transcript_line(
+async def save_transcript_line(
     body: TranscriptLineBody,
     db: Session = Depends(get_db),
     token_data: dict = Depends(verify_token),
@@ -132,7 +133,7 @@ def save_transcript_line(
     Called in real time as each final sentence arrives.
     """
     try:
-        saved = transcription_service.rest_save_transcript_line(
+        saved = await transcription_service.rest_save_transcript_line(
             conversation_id=body.conversation_id,
             text=body.text,
         )

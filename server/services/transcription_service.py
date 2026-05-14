@@ -278,7 +278,7 @@ def get_active_session(sid: str) -> TranscriptionSession | None:
 # ── REST-based helpers (client-side Deepgram) ─────────────────────────────────
 # Used when the browser runs Deepgram directly and POSTs text to the backend.
 
-def rest_save_transcript_line(conversation_id: int, text: str) -> dict:
+async def rest_save_transcript_line(conversation_id: int, text: str) -> dict:
     """
     Save a single transcript line sent by the client.
     Returns the saved transcript row as a dict.
@@ -293,7 +293,16 @@ def rest_save_transcript_line(conversation_id: int, text: str) -> dict:
         db.add(row)
         db.commit()
         db.refresh(row)
-        return {"id": row.id, "text": row.text, "timestamp": row.timestamp.isoformat()}
+        
+        # Also try to update the live summary
+        summary = ""
+        try:
+            from server.ai.summary_pipeline import update_summary
+            summary = await update_summary(conversation_id, text)
+        except Exception as e:
+            logger.error(f"Live summary update failed: {e}")
+
+        return {"id": row.id, "text": row.text, "timestamp": row.timestamp.isoformat(), "summary": summary}
     except Exception as exc:
         logger.error("rest_save_transcript_line failed: %s", exc)
         db.rollback()
@@ -302,12 +311,15 @@ def rest_save_transcript_line(conversation_id: int, text: str) -> dict:
         db.close()
 
 
-def rest_create_conversation(patient_id: int, person_id: int | None) -> int:
+def rest_create_conversation(patient_id: int, patient_name: str, person_id: int | None) -> int:
     """
     Create a new conversation row (called when the client starts recording).
     Returns the new conversation_id.
     """
-    return _create_conversation_in_db(patient_id, person_id)
+    cid = _create_conversation_in_db(patient_id, person_id)
+    from server.ai.summary_pipeline import create_session as create_summary_session
+    create_summary_session(cid, patient_name)
+    return cid
 
 
 async def rest_finish_conversation(
@@ -321,16 +333,17 @@ async def rest_finish_conversation(
     saves it to DB, closes the conversation, and returns the summary.
     """
     from server.ai.summary_pipeline import (
-        create_session as _create,
-        update_summary  as _update,
         close_session   as _close,
+        get_session,
     )
-
-    # Build a one-shot summary session
-    _create(conversation_id, patient_name)
-    # Feed the full transcript as a single update
-    summary_text = await _update(conversation_id, full_transcript)
-    _close(conversation_id)
+    
+    # If the session does not exist (perhaps missed start), we could re-create it,
+    # but normally it was created in rest_create_conversation.
+    summary_text = ""
+    sess = get_session(conversation_id)
+    if sess:
+        summary_text = sess.current_summary
+        _close(conversation_id)
 
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, _save_summary_to_db, conversation_id, summary_text)
