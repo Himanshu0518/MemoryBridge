@@ -27,4 +27,5 @@ export interface ConversationRecord {
 export interface PersonConversationsData {
   person:        ConversationPerson;
   conversations: ConversationRecord[];
+  history_restricted?: boolean;
 }

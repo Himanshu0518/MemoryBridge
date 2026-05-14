@@ -40,7 +40,7 @@ const listenerMiddleware = createListenerMiddleware();
 const startL = listenerMiddleware.startListening.bind(listenerMiddleware);
 
 // login
-startL({ predicate: isMutationLifecycle("pending",   "login"), effect: (_, a) => a.dispatch(loginStart()) });
+startL({ predicate: isMutationLifecycle("pending",   "login"), effect: (_, a) => { a.dispatch(loginStart()); } });
 startL({
   predicate: isMutationLifecycle("fulfilled", "login"),
   effect: (action, a) => {
@@ -48,7 +48,7 @@ startL({
     if (data?.data) a.dispatch(loginSuccess(data.data));
   },
 });
-startL({ predicate: isMutationLifecycle("rejected",  "login"), effect: (_, a) => a.dispatch(loginFailure()) });
+startL({ predicate: isMutationLifecycle("rejected",  "login"), effect: (_, a) => { a.dispatch(loginFailure()); } });
 
 // getMe
 startL({
@@ -69,28 +69,29 @@ startL({
 });
 
 // logout / deleteMe
-startL({ predicate: isMutationLifecycle("fulfilled", "logout"),   effect: (_, a) => a.dispatch(clearAuth()) });
-startL({ predicate: isMutationLifecycle("fulfilled", "deleteMe"), effect: (_, a) => a.dispatch(clearAuth()) });
+startL({ predicate: isMutationLifecycle("fulfilled", "logout"),   effect: (_, a) => { a.dispatch(clearAuth()); } });
+startL({ predicate: isMutationLifecycle("fulfilled", "deleteMe"), effect: (_, a) => { a.dispatch(clearAuth()); } });
 
 // patient session — start
-startL({ predicate: isMutationLifecycle("pending",   "startPatientSession"), effect: (_, a) => a.dispatch(sessionStart()) });
+startL({ predicate: isMutationLifecycle("pending",   "startPatientSession"), effect: (_, a) => { a.dispatch(sessionStart()); } });
 startL({
   predicate: isMutationLifecycle("fulfilled", "startPatientSession"),
   effect: (action, a) => {
     const resp = (action as RtkQueryAction).payload as { data?: PatientSessionData } | undefined;
     if (resp?.data) {
       a.dispatch(sessionOpened({
-        patientId:   resp.data.patient_id,
-        patientName: resp.data.patient_name,
-        token:       resp.data.patient_token,
+        patientId:      resp.data.patient_id,
+        patientName:    resp.data.patient_name,
+        token:          resp.data.patient_token,
+        diagnosisLevel: resp.data.diagnosis_level,
       }));
     }
   },
 });
-startL({ predicate: isMutationLifecycle("rejected",  "startPatientSession"), effect: (_, a) => a.dispatch(sessionLoadingFailed()) });
+startL({ predicate: isMutationLifecycle("rejected",  "startPatientSession"), effect: (_, a) => { a.dispatch(sessionLoadingFailed()); } });
 
 // patient session — exit
-startL({ predicate: isMutationLifecycle("fulfilled", "exitPatientSession"), effect: (_, a) => a.dispatch(sessionClosed()) });
+startL({ predicate: isMutationLifecycle("fulfilled", "exitPatientSession"), effect: (_, a) => { a.dispatch(sessionClosed()); } });
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 export const store = configureStore({

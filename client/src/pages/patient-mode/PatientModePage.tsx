@@ -3,6 +3,7 @@ import {
   Brain, Camera, CameraOff, ScanFace, Loader2, CheckCircle2,
   AlertCircle, UserX, UserCheck, Zap, Mic, Square, MessageSquare,
   Clock, ChevronDown, ChevronUp, RefreshCw, Activity, History, Send,
+  Bell, Heart,
 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
@@ -210,6 +211,47 @@ function RecognitionCard({
   );
 }
 
+// ─── Visitor Notification Card ────────────────────────────────────────────────
+function VisitorNotificationCard({
+  name, relation, imageUrl, onDismiss,
+}: {
+  name: string; relation: string; imageUrl?: string; onDismiss: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-3xl border-2 border-emerald-500/40 bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+        <div className="bg-gradient-to-br from-emerald-500/20 to-teal-500/10 px-6 pt-8 pb-6 flex flex-col items-center gap-4 text-center">
+          <div className="relative">
+            {imageUrl ? (
+              <img src={imageUrl} alt={name} className="size-28 rounded-full object-cover ring-4 ring-emerald-500/40 shadow-xl" />
+            ) : (
+              <div className="flex size-28 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/40">
+                <Heart className="size-12 text-emerald-600" />
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 flex size-8 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-card">
+              <Bell className="size-4 text-white" />
+            </div>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-1">Someone is here to visit you!</p>
+            <p className="text-3xl font-bold tracking-tight">{name}</p>
+            <span className="inline-block mt-2 rounded-full bg-emerald-500/15 px-4 py-1 text-sm font-semibold text-emerald-700 capitalize">{relation}</span>
+          </div>
+        </div>
+        <div className="px-6 pb-6 pt-4">
+          <button
+            onClick={onDismiss}
+            className="w-full rounded-2xl bg-foreground text-background py-3 text-sm font-bold hover:opacity-80 transition-opacity"
+          >
+            Great, thank you!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Past conversations panel (shown after recognition) ────────────────────────
 function PersonHistoryPanel({ personId, personName }: { personId: number; personName: string }) {
   const { data, isLoading } = useGetConversationsForPersonQuery(personId);
@@ -221,6 +263,12 @@ function PersonHistoryPanel({ personId, personName }: { personId: number; person
     <div className="flex items-center justify-center py-4">
       <Loader2 className="size-4 animate-spin text-muted-foreground" />
       <span className="ml-2 text-xs text-muted-foreground">Loading past conversations…</span>
+    </div>
+  );
+
+  if (data?.data?.history_restricted) return (
+    <div className="rounded-xl border border-dashed border-border px-4 py-3 text-center">
+      <p className="text-xs text-muted-foreground">Previous conversation history is restricted. Focusing on today's visit.</p>
     </div>
   );
 
@@ -322,7 +370,7 @@ function CameraPanel({
   onRecognised,
 }: {
   patientId: number;
-  onRecognised: (personId: number | null, personName: string) => void;
+  onRecognised: (personId: number | null, personName: string, isFamily: boolean, relation: string, imageUrl?: string) => void;
 }) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -375,13 +423,13 @@ function CameraPanel({
       const r = res as { success: boolean; data?: MatchFaceData };
       setResult(r);
       if (r.data && "recognised" in r.data && r.data.recognised) {
-        onRecognised(r.data.person_id, r.data.name);
+        onRecognised(r.data.person_id, r.data.name, r.data.is_family, r.data.relation, r.data.image_url);
       } else {
-        onRecognised(null, "");
+        onRecognised(null, "", false, "");
       }
     } catch {
       setResult({ success: false, data: { recognised: false } });
-      onRecognised(null, "");
+      onRecognised(null, "", false, "");
     } finally {
       setScanning(false);
       setCountdown(null);
@@ -615,16 +663,15 @@ export default function PatientModePage() {
   const session = useAppSelector(selectPatientSession);
   const [recognisedPersonId,   setRecognisedPersonId]   = useState<number | null>(null);
   const [recognisedPersonName, setRecognisedPersonName] = useState<string>("");
+  const [visitorNotification,  setVisitorNotification]  = useState<{ name: string; relation: string; imageUrl?: string } | null>(null);
   const [recordLocation] = useRecordLocationMutation();
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // Real-time location tracking for the active patient session format
+  // Real-time location tracking
   useEffect(() => {
     if (!session?.patientId) return;
-    
-    // We request the patient's device coordinate and continuously ping the server
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         recordLocation({
@@ -633,26 +680,20 @@ export default function PatientModePage() {
           longitude: position.coords.longitude
         });
       },
-      (error) => {
-        console.error("Location tracking error: ", error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
+      (error) => { console.error("Location tracking error: ", error); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
+    return () => { navigator.geolocation.clearWatch(watchId); };
   }, [session?.patientId, recordLocation]);
 
   if (!session) return null;
 
-  const handleRecognised = useCallback((pid: number | null, name: string) => {
+  const handleRecognised = useCallback((pid: number | null, name: string, isFamily: boolean, relation: string, imageUrl?: string) => {
     setRecognisedPersonId(pid);
     setRecognisedPersonName(name);
+    if (pid && isFamily && name) {
+      setVisitorNotification({ name, relation, imageUrl });
+    }
   }, []);
 
   return (
@@ -674,6 +715,16 @@ export default function PatientModePage() {
         </div>
       </div>
 
+      {/* ── Visitor notification overlay ── */}
+      {visitorNotification && (
+        <VisitorNotificationCard
+          name={visitorNotification.name}
+          relation={visitorNotification.relation || "family"}
+          imageUrl={visitorNotification.imageUrl}
+          onDismiss={() => setVisitorNotification(null)}
+        />
+      )}
+
       {/* ── Main split layout ── */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
@@ -682,29 +733,34 @@ export default function PatientModePage() {
           <div className="flex flex-col overflow-hidden p-5 gap-4">
             <div className="flex items-center gap-2 shrink-0">
               <MessageSquare className="size-4 text-muted-foreground" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Conversations</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Conversation</h2>
             </div>
 
-            {/* Past conversations when face recognised */}
-            {recognisedPersonId && (
-              <div className="shrink-0">
-                <PersonHistoryPanel
-                  personId={recognisedPersonId}
-                  personName={recognisedPersonName}
-                />
+            {recognisedPersonId ? (
+              <>
+                <div className="shrink-0">
+                  <PersonHistoryPanel personId={recognisedPersonId} personName={recognisedPersonName} />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <TranscriptionPanel
+                    patientId={session.patientId}
+                    patientName={session.patientName}
+                    personId={recognisedPersonId}
+                    autoStart={recognisedPersonId !== null}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center py-10">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
+                  <MessageSquare className="size-7 text-muted-foreground/50" />
+                </div>
+                <div>
+                  <p className="font-semibold">Awaiting Recognition</p>
+                  <p className="text-sm text-muted-foreground mt-1">Scan a face on the right to start recording the conversation.</p>
+                </div>
               </div>
             )}
-
-            {/* Live transcription — takes remaining space.
-                autoStart=true makes it fire automatically once a face is recognised. */}
-            <div className="flex-1 min-h-0">
-              <TranscriptionPanel
-                patientId={session.patientId}
-                patientName={session.patientName}
-                personId={recognisedPersonId}
-                autoStart={recognisedPersonId !== null}
-              />
-            </div>
           </div>
 
           {/* ── RIGHT: Face recognition camera ── */}

@@ -147,9 +147,14 @@ function ConvCard({ conv }: { conv: ConversationRecord }) {
 // ─── History page ─────────────────────────────────────────────────────────────
 export default function PatientHistoryPage() {
   const session = useAppSelector(selectPatientSession);
+
+  // Only show conversation history for mild diagnosis patients
+  const diagnosisLevel = session?.diagnosisLevel as string | undefined;
+  const showConversations = diagnosisLevel === "mild" || diagnosisLevel === undefined || diagnosisLevel === null;
+
   const { data, isLoading, isError } = useGetConversationsQuery(
     session?.patientId ?? 0,
-    { skip: !session },
+    { skip: !session || !showConversations },
   );
 
   const conversations = data?.data ?? [];
@@ -163,6 +168,26 @@ export default function PatientHistoryPage() {
     acc[key].push(c);
     return acc;
   }, {});
+
+  if (!showConversations) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-5 py-6">
+          <div className="flex flex-col items-center gap-4 py-20 text-center">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-muted">
+              <MessageSquare className="size-7 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Conversations are managed by your caregiver</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your care team reviews your conversation history and will share relevant information with you.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">

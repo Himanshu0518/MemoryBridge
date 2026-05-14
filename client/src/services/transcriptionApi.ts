@@ -33,7 +33,7 @@ export const transcriptionApi = api.injectEndpoints({
 
     // POST /transcription/transcript-line — save one final sentence
     saveTranscriptLine: builder.mutation<
-      ApiResponse<{ id: number; text: string; timestamp: string }>,
+      ApiResponse<{ id: number; text: string; timestamp: string; summary?: string }>,
       TranscriptLinePayload
     >({
       query: (body) => ({ url: "/transcription/transcript-line", method: "POST", body }),

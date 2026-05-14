@@ -41,6 +41,7 @@ from server.core.api_response import ApiResponse
 from server.dependencies.auth import verify_token
 from server.models.conversation import Conversation
 from server.models.person import Person
+from server.models.patient import Patient
 from server.services import transcription_service
 
 logger = logging.getLogger(__name__)
@@ -234,16 +235,25 @@ def get_conversations_for_person(
     if not person:
         raise ApiError(404, "Person not found")
 
-    conversations = (
-        db.query(Conversation)
-        .filter(Conversation.person_id == person_id)
-        .order_by(Conversation.started_at.desc())
-        .all()
-    )
+    # Access Control: If patient is in 'severe' case, they cannot see previous history
+    patient = person.patient
+    is_severe = (patient.diagnosis_level or "").lower() == "severe"
+
+    if is_severe:
+        conversations = []
+        message = f"History restricted for {person.name or 'this person'} (Severe Case Privacy)"
+    else:
+        conversations = (
+            db.query(Conversation)
+            .filter(Conversation.person_id == person_id)
+            .order_by(Conversation.started_at.desc())
+            .all()
+        )
+        message = f"Conversations with {person.name or 'this person'} fetched"
 
     return ApiResponse(
         success=True,
-        message=f"Conversations with {person.name or 'this person'} fetched",
+        message=message,
         data={
             "person": {
                 "id":       person.id,
@@ -252,6 +262,7 @@ def get_conversations_for_person(
                 "is_known": person.is_known,
             },
             "conversations": [_serialise_conversation(c) for c in conversations],
+            "history_restricted": is_severe
         },
     )
 

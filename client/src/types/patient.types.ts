@@ -30,6 +30,8 @@ export interface Person {
   name: string | null;
   relation: string | null;
   is_known: boolean;
+  is_family: boolean;
+  family_member_email: string | null;
   pending_verification: boolean;
   suggested_name: string | null;
   suggested_relation: string | null;
@@ -42,13 +44,18 @@ export interface CreatePersonPayload {
   name?: string;
   relation?: string;
   is_known: boolean;
+  is_family?: boolean;
+  family_member_email?: string;
 }
 
 export interface UpdatePersonPayload {
   name?: string;
   relation?: string;
   is_known?: boolean;
+  is_family?: boolean;
+  family_member_email?: string | null;
   pending_verification?: boolean;
   suggested_name?: string | null;
   suggested_relation?: string | null;
 }
+

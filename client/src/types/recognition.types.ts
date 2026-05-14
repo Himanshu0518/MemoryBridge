@@ -23,6 +23,7 @@ export interface MatchFaceRecognised {
   person_id: number;
   name: string;
   relation: string;
+  is_family: boolean;
   similarity: number;
   image_url?: string;
 }

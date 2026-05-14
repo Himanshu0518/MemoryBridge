@@ -164,6 +164,10 @@ async def match_face(
                     patient_id,
                 )
 
+        # Check for history restriction (Severe Case Privacy)
+        is_severe = (patient_obj.diagnosis_level or "").lower() == "severe"
+        result["history_restricted"] = is_severe
+
         return MatchFaceResponse(
             success=True,
             message=f"Recognised as {result['name']} ({result['relation']}).",

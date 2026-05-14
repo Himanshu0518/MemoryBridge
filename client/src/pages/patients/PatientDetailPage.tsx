@@ -7,6 +7,7 @@ import {
   ArrowLeft, Plus, User2, Camera, Loader2, AlertCircle,
   Trash2, Pencil, CheckCircle2, UserCheck, UserX, ScanFace,
   MonitorSmartphone, ShieldCheck, ShieldX, Clock,
+  Heart, MessageSquare, Brain, ChevronDown, ChevronUp, History,
 } from "lucide-react";
 import {
   useGetPatientQuery,
@@ -15,6 +16,7 @@ import {
   useUpdatePersonMutation,
   useStoreKnownFaceMutation,
   useStartPatientSessionMutation,
+  useGetConversationsQuery,
 } from "@/services";
 import type { Person } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -296,7 +298,93 @@ function PendingVerificationCard({
   );
 }
 
-// ─── Person Row ───────────────────────────────────────────────────────────────
+// ─── Family Email Modal ────────────────────────────────────────────────────────
+function FamilyEmailModal({
+  person,
+  patientId,
+  onClose,
+}: {
+  person: Person;
+  patientId: number;
+  onClose: () => void;
+}) {
+  const [updatePerson, { isLoading }] = useUpdatePersonMutation();
+  const [email, setEmail] = useState(person.family_member_email ?? "");
+  const [error, setError] = useState("");
+
+  const validate = (val: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) ? "" : "Enter a valid email address";
+
+  const handleSave = async () => {
+    const err = validate(email);
+    if (err) { setError(err); return; }
+    await updatePerson({
+      patientId,
+      personId: person.id,
+      payload: { is_family: true, family_member_email: email },
+    }).unwrap();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-gradient-to-br from-rose-500/15 to-pink-500/10 px-6 pt-6 pb-5 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-rose-500/15">
+              <Heart className="size-4 text-rose-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Mark as Family Member</p>
+              <p className="text-xs text-muted-foreground">
+                We'll email them whenever {person.name ?? "this person"} visits.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Family Member's Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(""); }}
+              placeholder="rahul@gmail.com"
+              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors"
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              autoFocus
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            A notification email will be sent to this address every time{" "}
+            <strong>{person.name ?? "this person"}</strong> is recognised visiting the patient.
+          </p>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-border py-2 text-sm font-medium hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="flex-1 rounded-xl bg-rose-500 text-white py-2 text-sm font-semibold hover:bg-rose-600 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+            >
+              {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Heart className="size-4" />}
+              Save & Notify
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Person Row ────────────────────────────────────────────────────────────────
 function PersonRow({
   person,
   patientId,
@@ -305,7 +393,9 @@ function PersonRow({
   patientId: number;
 }) {
   const [deletePerson, { isLoading: deleting }] = useDeletePersonMutation();
+  const [updatePerson, { isLoading: removing }] = useUpdatePersonMutation();
   const [showLabel, setShowLabel] = useState(false);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
   const handleDelete = async () => {
@@ -313,15 +403,23 @@ function PersonRow({
     await deletePerson({ patientId, personId: person.id }).unwrap();
   };
 
+  const handleRemoveFamily = async () => {
+    await updatePerson({
+      patientId,
+      personId: person.id,
+      payload: { is_family: false, family_member_email: null },
+    }).unwrap();
+  };
+
   return (
     <>
       <div className="group flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:border-foreground/20">
         <div className="flex items-center gap-3 min-w-0">
           {person.image_url ? (
-            <img 
-              src={person.image_url} 
-              alt={person.name ?? "Unknown person"} 
-              className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border" 
+            <img
+              src={person.image_url}
+              alt={person.name ?? "Unknown person"}
+              className="size-9 shrink-0 rounded-full object-cover ring-1 ring-border"
             />
           ) : (
             <div className={cn(
@@ -335,19 +433,53 @@ function PersonRow({
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-sm font-medium truncate">
-              {person.is_known
-                ? (person.name ?? "—")
-                : <span className="text-amber-600 italic">Unknown person</span>
-              }
-            </p>
-            {person.relation && (
-              <p className="text-xs text-muted-foreground capitalize">{person.relation}</p>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-medium truncate">
+                {person.is_known
+                  ? (person.name ?? "—")
+                  : <span className="text-amber-600 italic">Unknown person</span>
+                }
+              </p>
+              {person.is_family && (
+                <span className="flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600">
+                  <Heart className="size-2.5" /> Family
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {person.relation && (
+                <p className="text-xs text-muted-foreground capitalize">{person.relation}</p>
+              )}
+              {person.is_family && person.family_member_email && (
+                <p className="text-xs text-muted-foreground/70 truncate max-w-[180px]">
+                  ✉ {person.family_member_email}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {person.is_known && !person.is_family && (
+            <button
+              onClick={() => setShowFamilyModal(true)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-rose-600 transition-colors"
+              title="Mark as family member"
+            >
+              <Heart className="size-3.5" /> Add Family
+            </button>
+          )}
+          {person.is_known && person.is_family && (
+            <button
+              onClick={handleRemoveFamily}
+              disabled={removing}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors"
+              title="Remove from family"
+            >
+              {removing ? <Loader2 className="size-3.5 animate-spin" /> : <Heart className="size-3.5" />}
+              Family
+            </button>
+          )}
           {!person.is_known && (
             <button
               onClick={() => setShowLabel(true)}
@@ -376,6 +508,13 @@ function PersonRow({
         </div>
       </div>
 
+      {showFamilyModal && (
+        <FamilyEmailModal
+          person={person}
+          patientId={patientId}
+          onClose={() => setShowFamilyModal(false)}
+        />
+      )}
       {showLabel && (
         <LabelUnknownModal
           patientId={patientId}
@@ -384,6 +523,94 @@ function PersonRow({
         />
       )}
     </>
+  );
+}
+
+
+// ─── Conversations Section (caregiver view) ───────────────────────────────────
+function toUtc(iso: string) { return iso.endsWith("Z") ? iso : iso + "Z"; }
+function formatDate(iso: string) {
+  return new Date(toUtc(iso)).toLocaleDateString("en-IN", {
+    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function ConversationsSection({ patientId }: { patientId: number }) {
+  const { data, isLoading } = useGetConversationsQuery(patientId);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const conversations = data?.data ?? [];
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <History className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold text-foreground">Conversation History</h2>
+        <span className="ml-1 text-muted-foreground font-normal text-xs">({conversations.length})</span>
+      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="size-5 animate-spin text-muted-foreground" /></div>
+      ) : conversations.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center">
+          <MessageSquare className="size-6 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">No conversations recorded yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {conversations.map((conv) => {
+            const isOpen = expandedId === conv.id;
+            const person = conv.person;
+            return (
+              <div key={conv.id} className="rounded-lg border border-border bg-card overflow-hidden">
+                <button
+                  onClick={() => setExpandedId(isOpen ? null : conv.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {person?.name ? (
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/10">
+                        <span className="text-xs font-bold">{person.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}</span>
+                      </div>
+                    ) : (
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <User2 className="size-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{person?.name ?? "Unknown person"}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(conv.started_at)} · {conv.transcripts.length} lines</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {conv.summary && <span className="text-[10px] font-medium bg-emerald-500/10 text-emerald-700 px-2 py-0.5 rounded-full">Summary</span>}
+                    {isOpen ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 border-t border-border space-y-3 pt-3">
+                    {conv.summary && (
+                      <div className="rounded-lg bg-foreground/5 border border-border p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+                          <Brain className="size-3" /> AI Summary
+                        </p>
+                        <p className="text-sm leading-relaxed whitespace-pre-line">{conv.summary}</p>
+                      </div>
+                    )}
+                    {conv.transcripts.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto space-y-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Transcript</p>
+                        {conv.transcripts.map((t) => (
+                          <p key={t.id} className="text-xs text-muted-foreground border-l-2 border-border pl-2 py-0.5">{t.text}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -604,6 +831,9 @@ export default function PatientDetailPage() {
           <section>
             <PatientTrackingMap patientId={patientId} />
           </section>
+
+          {/* Conversations Section */}
+          <ConversationsSection patientId={patientId} />
         </div>
       )}
 

@@ -202,12 +202,17 @@ export function useTranscription(
           // Buffer for summary on stop
           transcriptLinesRef.current.push(sentence);
 
-          // Persist to backend (fire-and-forget)
+          // Persist to backend (fire-and-forget but capture summary)
           const cidNow = conversationIdRef.current;
           if (cidNow) {
-            saveTranscriptLine({ conversation_id: cidNow, text: sentence }).catch(
-              (err) => console.error("Failed to save transcript line:", err),
-            );
+            saveTranscriptLine({ conversation_id: cidNow, text: sentence })
+              .unwrap()
+              .then((res: any) => {
+                if (res.data?.summary) {
+                  setSummary(res.data.summary);
+                }
+              })
+              .catch((err) => console.error("Failed to save transcript line:", err));
           }
         } catch (parseErr) {
           console.warn("Failed to parse Deepgram message:", parseErr);

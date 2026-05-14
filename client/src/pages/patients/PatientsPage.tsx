@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -21,10 +21,9 @@ import { cn } from "@/lib/utils";
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const createPatientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  age: z.coerce.number().min(0).max(120).optional(),
-  diagnosis_level: z.enum(["mild", "moderate", "severe"]).optional(),
+  age: z.number().min(0).max(120).optional(),
+  diagnosis_level: z.enum(["mild", "moderate", "severe"]).optional().or(z.literal("")),
 });
-type CreatePatientForm = z.infer<typeof createPatientSchema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const diagnosisColors: Record<string, string> = {
@@ -51,13 +50,13 @@ function AddPatientModal({ onClose }: { onClose: () => void }) {
   const {
     register, handleSubmit,
     formState: { errors },
-  } = useForm<CreatePatientForm>({ resolver: zodResolver(createPatientSchema) });
+  } = useForm<any>({ resolver: zodResolver(createPatientSchema) });
 
-  const onSubmit = async (data: CreatePatientForm) => {
+  const onSubmit: SubmitHandler<any> = async (data) => {
     await createPatient({
       name: data.name,
-      age: data.age,
-      diagnosis_level: data.diagnosis_level,
+      age: data.age as number | undefined,
+      diagnosis_level: (data.diagnosis_level === "" ? undefined : data.diagnosis_level) as any,
     }).unwrap();
     onClose();
   };
@@ -78,13 +77,13 @@ function AddPatientModal({ onClose }: { onClose: () => void }) {
           </p>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-4 space-y-4">
-          <FormField label="Full name" error={errors.name?.message} htmlFor="p-name" required>
+          <FormField label="Full name" error={errors.name?.message as string} htmlFor="p-name" required>
             <Input id="p-name" placeholder="Ramesh Kumar" {...register("name")} />
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Age" error={errors.age?.message} htmlFor="p-age">
-              <Input id="p-age" type="number" placeholder="72" {...register("age")} />
+            <FormField label="Age" error={errors.age?.message as string} htmlFor="p-age">
+              <Input id="p-age" type="number" placeholder="72" {...register("age", { valueAsNumber: true })} />
             </FormField>
             <FormField label="Diagnosis level" htmlFor="p-diagnosis">
               <select
