@@ -51,15 +51,78 @@ function SuggestIdentityForm({
   unknownPersonId,
   patientId,
   onRetry,
+  onContinue,
 }: {
   unknownPersonId: number;
   patientId: number;
   onRetry: () => void;
+  onContinue: () => void;
 }) {
   const [name, setName]         = useState("");
   const [relation, setRelation] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [listeningField, setListeningField] = useState<"name" | "relation" | null>(null);
   const [suggestIdentity, { isLoading }] = useSuggestIdentityMutation();
+
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      const msg = new SpeechSynthesisUtterance("I don't recognize this face. Please ask the visitor to tell their name and relation, or type it manually on the screen.");
+      msg.rate = 0.9;
+      msg.onstart = () => setIsSpeaking(true);
+      msg.onend = () => setIsSpeaking(false);
+      msg.onerror = () => setIsSpeaking(false);
+      
+      window.speechSynthesis.cancel(); // stop any current speech
+      window.speechSynthesis.speak(msg);
+
+      return () => {
+        window.speechSynthesis.cancel();
+      };
+    }
+  }, []);
+
+  const handleVoiceInput = (e: React.MouseEvent, field: "name" | "relation") => {
+    e.preventDefault();
+    if (listeningField === field) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      window.speechSynthesis.cancel();
+      setListeningField(field);
+    };
+
+    recognition.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      console.log(`Voice captured for ${field}:`, transcript);
+      if (field === "name") setName(transcript);
+      else setRelation(transcript);
+      setListeningField(null);
+    };
+
+    recognition.onerror = (e: any) => {
+      console.error("Speech recognition error:", e.error);
+      setListeningField(null);
+    };
+    
+    recognition.onend = () => setListeningField(null);
+    
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error("Speech recognition failed to start:", err);
+      setListeningField(null);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!name.trim() || !relation.trim()) return;
@@ -74,46 +137,77 @@ function SuggestIdentityForm({
       </div>
       <p className="font-semibold">Suggestion sent!</p>
       <p className="text-sm text-muted-foreground">Your caregiver will verify and add this person.</p>
-      <button onClick={onRetry} className="mt-1 flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors">
-        <ScanFace className="size-4" /> Scan again
-      </button>
+      <div className="flex gap-2 mt-1 w-full justify-center">
+        <button onClick={onContinue} className="flex items-center justify-center gap-2 rounded-xl bg-foreground text-background px-4 py-2 text-sm font-semibold hover:opacity-80 transition-opacity">
+          <MessageSquare className="size-4" /> Start
+        </button>
+        <button onClick={onRetry} className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors">
+          <ScanFace className="size-4" /> Scan again
+        </button>
+      </div>
     </div>
   );
 
   return (
     <div className="flex flex-col gap-4 py-4 px-2">
-      <div className="flex flex-col items-center gap-2 text-center">
+      <div className="flex flex-col items-center gap-2 text-center relative">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-muted">
           <UserX className="size-7 text-muted-foreground" />
         </div>
+        {isSpeaking && (
+          <div className="absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full bg-emerald-500 text-white animate-bounce shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+          </div>
+        )}
         <p className="font-bold text-base">Not recognised</p>
         <p className="text-sm text-muted-foreground">Do you know this person? Tell us who they are.</p>
       </div>
       <div className="space-y-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Their name (e.g. Rahul)"
-          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
-        />
-        <input
-          value={relation}
-          onChange={(e) => setRelation(e.target.value)}
-          placeholder="Relation (e.g. son, doctor)"
-          className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
-        />
+        <div className="relative">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Their name (e.g. Rahul)"
+            className="w-full rounded-xl border border-border bg-muted/40 pl-3 pr-10 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
+          />
+          <button 
+            onClick={(e) => handleVoiceInput(e, "name")} 
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${listeningField === "name" ? 'bg-rose-500/20 text-rose-500' : 'text-muted-foreground hover:bg-muted'}`}
+          >
+            <Mic className="size-4" />
+          </button>
+        </div>
+        <div className="relative">
+          <input
+            value={relation}
+            onChange={(e) => setRelation(e.target.value)}
+            placeholder="Relation (e.g. son, doctor)"
+            className="w-full rounded-xl border border-border bg-muted/40 pl-3 pr-10 py-2.5 text-sm outline-none focus:border-foreground/40 transition-colors"
+          />
+          <button 
+            onClick={(e) => handleVoiceInput(e, "relation")} 
+            className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-colors ${listeningField === "relation" ? 'bg-rose-500/20 text-rose-500' : 'text-muted-foreground hover:bg-muted'}`}
+          >
+            <Mic className="size-4" />
+          </button>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <button
-          onClick={handleSubmit}
-          disabled={isLoading || !name.trim() || !relation.trim()}
-          className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background py-2.5 text-sm font-semibold hover:opacity-80 transition-opacity disabled:opacity-40"
-        >
-          {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          Send for verification
-        </button>
-        <button onClick={onRetry} className="flex items-center justify-center rounded-xl border border-border px-3 hover:bg-muted transition-colors">
-          <RefreshCw className="size-4" />
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button
+            onClick={handleSubmit}
+            disabled={isLoading || !name.trim() || !relation.trim()}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-foreground text-background py-2.5 text-sm font-semibold hover:opacity-80 transition-opacity disabled:opacity-40"
+          >
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            Send for verification
+          </button>
+          <button onClick={onRetry} className="flex items-center justify-center rounded-xl border border-border px-3 hover:bg-muted transition-colors">
+            <RefreshCw className="size-4" />
+          </button>
+        </div>
+        <button onClick={onContinue} className="w-full flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 py-2 text-sm font-semibold hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+          <MessageSquare className="size-4" /> Skip & start conversation
         </button>
       </div>
     </div>
@@ -125,10 +219,12 @@ function RecognitionCard({
   result,
   patientId,
   onRetry,
+  onContinue,
 }: {
   result: { success: boolean; data?: MatchFaceData };
   patientId: number;
   onRetry: () => void;
+  onContinue: () => void;
 }) {
   const d = result.data;
   const noFace = !d || ("error" in d && d.error === "no_face_detected");
@@ -192,7 +288,7 @@ function RecognitionCard({
   // Unknown face — show suggestion form
   const unknownPersonId = d && "unknown_face_id" in d ? d.unknown_face_id : null;
   if (unknownPersonId) {
-    return <SuggestIdentityForm unknownPersonId={unknownPersonId} patientId={patientId} onRetry={onRetry} />;
+    return <SuggestIdentityForm unknownPersonId={unknownPersonId} patientId={patientId} onRetry={onRetry} onContinue={onContinue} />;
   }
 
   return (
@@ -368,9 +464,11 @@ function PersonHistoryPanel({ personId, personName }: { personId: number; person
 function CameraPanel({
   patientId,
   onRecognised,
+  onContinueAsUnknown,
 }: {
   patientId: number;
   onRecognised: (personId: number | null, personName: string, isFamily: boolean, relation: string, imageUrl?: string) => void;
+  onContinueAsUnknown: () => void;
 }) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -508,7 +606,7 @@ function CameraPanel({
         {/* Result overlay */}
         {result && (
           <div className="absolute inset-0 bg-card overflow-y-auto">
-            <RecognitionCard result={result} patientId={patientId} onRetry={() => { setResult(null); }} />
+            <RecognitionCard result={result} patientId={patientId} onRetry={() => { setResult(null); }} onContinue={onContinueAsUnknown} />
           </div>
         )}
       </div>
@@ -663,11 +761,25 @@ export default function PatientModePage() {
   const session = useAppSelector(selectPatientSession);
   const [recognisedPersonId,   setRecognisedPersonId]   = useState<number | null>(null);
   const [recognisedPersonName, setRecognisedPersonName] = useState<string>("");
+  const [allowUnknownConversation, setAllowUnknownConversation] = useState(false);
   const [visitorNotification,  setVisitorNotification]  = useState<{ name: string; relation: string; imageUrl?: string } | null>(null);
   const [recordLocation] = useRecordLocationMutation();
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // Initial Voice Greeting
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      const msg = new SpeechSynthesisUtterance("First, perform face verification to start the conversation.");
+      msg.rate = 0.9;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(msg);
+      return () => {
+        window.speechSynthesis.cancel();
+      };
+    }
+  }, []);
 
   // Real-time location tracking
   useEffect(() => {
@@ -691,9 +803,14 @@ export default function PatientModePage() {
   const handleRecognised = useCallback((pid: number | null, name: string, isFamily: boolean, relation: string, imageUrl?: string) => {
     setRecognisedPersonId(pid);
     setRecognisedPersonName(name);
+    setAllowUnknownConversation(false);
     if (pid && isFamily && name) {
       setVisitorNotification({ name, relation, imageUrl });
     }
+  }, []);
+
+  const handleContinueAsUnknown = useCallback(() => {
+    setAllowUnknownConversation(true);
   }, []);
 
   return (
@@ -736,17 +853,19 @@ export default function PatientModePage() {
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Conversation</h2>
             </div>
 
-            {recognisedPersonId ? (
+            {recognisedPersonId || allowUnknownConversation ? (
               <>
-                <div className="shrink-0">
-                  <PersonHistoryPanel personId={recognisedPersonId} personName={recognisedPersonName} />
-                </div>
+                {recognisedPersonId && (
+                  <div className="shrink-0">
+                    <PersonHistoryPanel personId={recognisedPersonId} personName={recognisedPersonName} />
+                  </div>
+                )}
                 <div className="flex-1 min-h-0">
                   <TranscriptionPanel
                     patientId={session.patientId}
                     patientName={session.patientName}
                     personId={recognisedPersonId}
-                    autoStart={recognisedPersonId !== null}
+                    autoStart={true}
                   />
                 </div>
               </>
@@ -773,6 +892,7 @@ export default function PatientModePage() {
               <CameraPanel
                 patientId={session.patientId}
                 onRecognised={handleRecognised}
+                onContinueAsUnknown={handleContinueAsUnknown}
               />
             </div>
           </div>
