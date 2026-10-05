@@ -1,6 +1,13 @@
-import '../global.css';
 import { Stack } from "expo-router";
 
-export default function Layout() {
-  return <Stack />;
+export default function TabsLayout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "slide_from_right",
+        contentStyle: { backgroundColor: "#F8FAFF" },
+      }}
+    />
+  );
 }

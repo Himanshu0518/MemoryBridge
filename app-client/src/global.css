@@ -7,25 +7,39 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #09090b;
+  /* ── Brand / Primary (deep blue) ── */
+  --color-brand:          #208AEF;
+  --color-brand-dark:     #1570CA;
+  --color-brand-light:    #5BACF4;
+  --color-brand-muted:    #D6EBFC;
 
-  --color-primary: #18181b;
-  --color-primary-foreground: #fafafa;
+  /* ── Semantic tokens ── */
+  --color-background:     #F8FAFF;
+  --color-surface:        #FFFFFF;
+  --color-foreground:     #0C0F1A;
 
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #18181b;
+  --color-primary:              #208AEF;
+  --color-primary-foreground:   #FFFFFF;
 
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
+  --color-secondary:            #EBF4FE;
+  --color-secondary-foreground: #1570CA;
 
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
+  --color-muted:                #F1F5FC;
+  --color-muted-foreground:     #6B7897;
 
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #fafafa;
+  --color-accent:               #EBF4FE;
+  --color-accent-foreground:    #1570CA;
 
-  --color-border: #e4e4e7;
-  --color-input: #e4e4e7;
-  --color-ring: #18181b;
+  --color-destructive:          #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+
+  --color-border:               #DDE3F0;
+  --color-input:                #FFFFFF;
+  --color-ring:                 #208AEF;
+
+  /* ── Dark mode overrides ── */
+  --color-dark-background:  #0A0F1E;
+  --color-dark-surface:     #111827;
+  --color-dark-foreground:  #EDF1FB;
+  --color-dark-border:      #1F2A42;
 }
