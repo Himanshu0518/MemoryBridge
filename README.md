@@ -26,6 +26,7 @@ Built with **FastAPI**, **PostgreSQL + SQLAlchemy + Alembic**, **Socket.IO**, an
 16. [Setup & running locally](#setup--running-locally)
 17. [Environment variables](#environment-variables)
 18. [Security notes](#security-notes)
+19. [Mobile App (app-client)](#mobile-app-app-client)
 
 ---
 
@@ -410,3 +411,182 @@ SMTP_FROM=your-gmail@gmail.com
 - All patient/person data access goes through an ownership check (`_assert_owns_patient`) at the service layer, not just at the router — so a caregiver can never read or modify another caregiver's patient data even if they guess an ID.
 - Severe-diagnosis patients have conversation history withheld from the patient-facing view by design, not just by convention — the check happens server-side in both the recognition and transcription endpoints.
 - `secure=False` is currently set on cookies for local development — this **must** be switched to `secure=True` (HTTPS-only) before any production deployment.
+
+---
+
+## Mobile App (app-client)
+
+The `app-client/` directory contains the **Expo (React Native)** mobile application — a caregiver and patient-facing app that talks to the FastAPI server above.
+
+### Tech stack
+
+| Layer | Technology |
+|---|---|
+| Framework | **Expo SDK 57** (React Native 0.86) |
+| Navigation | **Expo Router** (file-based routing) |
+| Styling | **NativeWind 5** (Tailwind CSS for React Native) |
+| State management | **Redux Toolkit** + **RTK Query** |
+| Realtime | **Socket.IO client** |
+| Live transcription | **Deepgram WebSocket** (browser/web) · `@siteed/expo-audio-studio` (native) |
+| Face recognition | Expo Camera → multipart upload to backend |
+| Storage | `expo-secure-store` (tokens) |
+| Package manager | **pnpm** |
+
+### Prerequisites
+
+- **Node.js** 18+ and **pnpm** — install pnpm with `npm i -g pnpm`
+- **Expo Go** app on your phone (for quick testing), **or** a native dev build for full camera/audio support
+- The FastAPI server running (see [Setup & running locally](#setup--running-locally) above)
+- A **Deepgram** account with an API key (get one free at [console.deepgram.com](https://console.deepgram.com))
+
+### 1. Install dependencies
+
+```bash
+cd app-client
+pnpm install
+```
+
+### 2. Configure environment
+
+Create a `.env` file inside `app-client/`:
+
+```bash
+cp .env.example .env   # if the example file exists, otherwise create manually
+```
+
+Edit `app-client/.env`:
+
+```env
+# FastAPI backend base URL — no trailing slash
+# ─────────────────────────────────────────────────────────────
+# Web browser (pnpm expo start --web):
+#   EXPO_PUBLIC_API_URL=http://localhost:8000
+#
+# Android Emulator (reaches host machine via special alias):
+#   EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+#
+# Physical device (phone on same Wi-Fi as your dev machine):
+#   EXPO_PUBLIC_API_URL=http://<YOUR_LAN_IP>:8000
+#   e.g. EXPO_PUBLIC_API_URL=http://192.168.1.42:8000
+#
+# If you leave this blank, the app auto-detects the Expo dev server
+# host at runtime (works for physical devices when started with --lan).
+EXPO_PUBLIC_API_URL=http://10.0.2.2:8000
+
+# Deepgram API key — used by the app/browser for live transcription
+EXPO_PUBLIC_DEEPGRAM_API_KEY=your_deepgram_api_key_here
+```
+
+> **Physical device tip**: Run the server with `--host 0.0.0.0` so it listens on your LAN interface:
+> ```bash
+> uv run uvicorn main:application --reload --host 0.0.0.0 --port 8000
+> ```
+> Then set `EXPO_PUBLIC_API_URL=http://192.168.x.x:8000` to your machine's LAN IP.
+
+### 3. Start the development server
+
+```bash
+# Interactive (choose web / Android / iOS from the terminal menu)
+pnpm expo start
+
+# Or target a specific platform directly:
+pnpm expo start --web          # opens in browser at http://localhost:8081
+pnpm expo start --android      # requires Android emulator or connected device
+pnpm expo start --ios          # macOS + Xcode only
+pnpm expo start --lan          # expose on LAN for physical-device scanning
+```
+
+Scan the QR code with **Expo Go** (iOS/Android) or press `w` to open the web version in your browser.
+
+### 4. Platform-specific notes
+
+#### Web (`--web`)
+
+All features work in the browser including live transcription (uses `navigator.mediaDevices` + `MediaRecorder` → Deepgram WebSocket).
+
+Make sure the API URL resolves to `localhost:8000` — the app automatically overrides the `10.0.2.2` emulator alias when it detects the Web platform.
+
+#### Android Emulator
+
+`http://10.0.2.2:8000` is the correct URL (the emulator's loopback alias for the host machine's `localhost`). This is the default in `.env`.
+
+#### Physical Device (Expo Go)
+
+1. Connect your phone to the **same Wi-Fi** as your dev machine.
+2. Either:
+   - Run `pnpm expo start --lan` — Expo exposes its own host and the app auto-detects `<your-LAN-IP>:8000`, **or**
+   - Set `EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:8000` explicitly in `.env`.
+3. Make sure the server is started with `--host 0.0.0.0`.
+
+> **Note**: Some features (camera-based face recognition, native audio recording) require **device permissions** granted at runtime. On Expo Go, native camera and microphone access are supported. The `@siteed/expo-audio-studio` native module requires a **custom dev build** — see below.
+
+#### Custom Dev Build (for full native audio)
+
+Expo Go sandboxes native modules, so `@siteed/expo-audio-studio` (used for live PCM audio streaming on native) will only work in a **development build**:
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Build a local dev client for Android
+eas build --profile development --platform android --local
+
+# Or run with prebuild (requires Android Studio / Xcode)
+pnpm expo prebuild
+pnpm expo run:android
+pnpm expo run:ios
+```
+
+For web (`--web`), this is not needed — the web hook uses the standard browser `MediaRecorder` API automatically.
+
+### Project structure
+
+```
+app-client/
+├── src/
+│   ├── app/                     # Expo Router file-based routes
+│   │   ├── (auth)/              # SignIn, SignUp screens
+│   │   ├── (tabs)/              # Caregiver tabs: Home, Patients, PatientDetail, …
+│   │   ├── (patient-mode)/      # Patient-facing PatientMode screen
+│   │   └── _layout.tsx          # Root layout, Redux Provider, auth initialization
+│   ├── components/
+│   │   └── ui/                  # Shared design-system components (Text, Blob, …)
+│   ├── hooks/
+│   │   ├── useTranscription.ts       # Native (Android/iOS) live transcription hook
+│   │   └── useTranscription.web.ts   # Web live transcription hook (auto-selected by Metro)
+│   ├── services/
+│   │   ├── api.ts               # RTK Query base API, token refresh logic, platform-aware BASE_URL
+│   │   ├── userApi.ts
+│   │   ├── patientApi.ts
+│   │   ├── recognitionApi.ts
+│   │   ├── transcriptionApi.ts
+│   │   ├── patientSessionApi.ts
+│   │   └── socket.ts            # Socket.IO singleton
+│   ├── store/
+│   │   ├── index.ts             # Redux store
+│   │   ├── authSlice.ts
+│   │   └── patientSessionSlice.ts
+│   ├── lib/
+│   │   └── storage.ts           # expo-secure-store wrappers
+│   └── types/                   # Shared TypeScript types
+├── assets/                      # Icons, splash, fonts
+├── app.json                     # Expo app config (permissions, plugins, …)
+├── package.json
+└── .env                         # ← YOU CREATE THIS (see step 2)
+```
+
+### Environment variables reference
+
+| Variable | Required | Description |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL` | No* | FastAPI backend URL. Auto-detected from Expo dev server if blank. |
+| `EXPO_PUBLIC_DEEPGRAM_API_KEY` | Yes | Deepgram API key for live speech-to-text transcription. |
+
+*If left blank on a physical device, the app tries to derive the backend URL from the Expo dev server host. For production or when auto-detection fails, always set it explicitly.
+
+### Linting
+
+```bash
+pnpm expo lint
+```
+
