@@ -1,0 +1,45 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+@theme {
+  /* ── Brand / Primary (deep blue) ── */
+  --color-brand: #208AEF;
+  --color-brand-dark: #1570CA;
+  --color-brand-light: #5BACF4;
+  --color-brand-muted: #D6EBFC;
+
+  /* ── Semantic tokens ── */
+  --color-background: #F8FAFF;
+  --color-surface: #FFFFFF;
+  --color-foreground: #0C0F1A;
+
+  --color-primary: #208AEF;
+  --color-primary-foreground: #FFFFFF;
+
+  --color-secondary: #EBF4FE;
+  --color-secondary-foreground: #1570CA;
+
+  --color-muted: #F1F5FC;
+  --color-muted-foreground: #6B7897;
+
+  --color-accent: #EBF4FE;
+  --color-accent-foreground: #1570CA;
+
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+
+  --color-bordpleaer: #DDE3F0;
+  --color-input: #FFFFFF;
+  --color-ring: #208AEF;
+
+  /* ── Dark mode overrides ── */
+  --color-dark-background: #0A0F1E;
+  --color-dark-surface: #111827;
+  --color-dark-foreground: #EDF1FB;
+  --color-dark-border: #1F2A42;
+}
