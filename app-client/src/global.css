@@ -8,38 +8,38 @@
 
 @theme {
   /* ── Brand / Primary (deep blue) ── */
-  --color-brand:          #208AEF;
-  --color-brand-dark:     #1570CA;
-  --color-brand-light:    #5BACF4;
-  --color-brand-muted:    #D6EBFC;
+  --color-brand: #208AEF;
+  --color-brand-dark: #1570CA;
+  --color-brand-light: #5BACF4;
+  --color-brand-muted: #D6EBFC;
 
   /* ── Semantic tokens ── */
-  --color-background:     #F8FAFF;
-  --color-surface:        #FFFFFF;
-  --color-foreground:     #0C0F1A;
+  --color-background: #F8FAFF;
+  --color-surface: #FFFFFF;
+  --color-foreground: #0C0F1A;
 
-  --color-primary:              #208AEF;
-  --color-primary-foreground:   #FFFFFF;
+  --color-primary: #208AEF;
+  --color-primary-foreground: #FFFFFF;
 
-  --color-secondary:            #EBF4FE;
+  --color-secondary: #EBF4FE;
   --color-secondary-foreground: #1570CA;
 
-  --color-muted:                #F1F5FC;
-  --color-muted-foreground:     #6B7897;
+  --color-muted: #F1F5FC;
+  --color-muted-foreground: #6B7897;
 
-  --color-accent:               #EBF4FE;
-  --color-accent-foreground:    #1570CA;
+  --color-accent: #EBF4FE;
+  --color-accent-foreground: #1570CA;
 
-  --color-destructive:          #EF4444;
+  --color-destructive: #EF4444;
   --color-destructive-foreground: #FFFFFF;
 
-  --color-border:               #DDE3F0;
-  --color-input:                #FFFFFF;
-  --color-ring:                 #208AEF;
+  --color-bordpleaer: #DDE3F0;
+  --color-input: #FFFFFF;
+  --color-ring: #208AEF;
 
   /* ── Dark mode overrides ── */
-  --color-dark-background:  #0A0F1E;
-  --color-dark-surface:     #111827;
-  --color-dark-foreground:  #EDF1FB;
-  --color-dark-border:      #1F2A42;
+  --color-dark-background: #0A0F1E;
+  --color-dark-surface: #111827;
+  --color-dark-foreground: #EDF1FB;
+  --color-dark-border: #1F2A42;
 }

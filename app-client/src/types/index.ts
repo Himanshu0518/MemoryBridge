@@ -24,3 +24,20 @@ export type {
   KnownPerson,
   KnownPersonsResponse,
 } from "./recognition.types";
+export type {
+  ConversationRecord,
+  ConversationTranscript,
+  ConversationPerson,
+  PersonConversationsData,
+} from "./conversation.types";
+export type { TrackingLocation } from "./location.types";
+export type {
+  TranscriptionStatus,
+  TranscriptLine,
+  ConversationSummary,
+  TranscriptionStartedPayload,
+  TranscriptLinePayload,
+  SummaryUpdatePayload,
+  TranscriptionStoppedPayload,
+  TranscriptionErrorPayload,
+} from "./transcription.types";

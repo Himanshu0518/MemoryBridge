@@ -7,6 +7,7 @@ import type {
   UpdatePatientPayload,
   CreatePersonPayload,
   UpdatePersonPayload,
+  TrackingLocation,
 } from "@/types";
 
 export const patientApi = api.injectEndpoints({
@@ -108,6 +109,33 @@ export const patientApi = api.injectEndpoints({
         { type: "Recognition", id: `KNOWN-${patientId}` },
       ],
     }),
+
+    // ── GET /tracking/patients/:patientId/locations ──────────────────────────────
+    getLocations: builder.query<TrackingLocation[], number>({
+      query: (patientId) => `/tracking/patients/${patientId}/locations`,
+      providesTags: (result, _err, patientId) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: "Location" as const, id })),
+              { type: "Location", id: `LIST-${patientId}` },
+            ]
+          : [{ type: "Location", id: `LIST-${patientId}` }],
+    }),
+
+    // ── POST /tracking/locations ─────────────────────────────────────────────
+    recordLocation: builder.mutation<
+      TrackingLocation,
+      { patient_id: number; latitude: number; longitude: number }
+    >({
+      query: (payload) => ({
+        url: "/tracking/locations",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: (_result, _err, { patient_id }) => [
+        { type: "Location", id: `LIST-${patient_id}` },
+      ],
+    }),
   }),
   overrideExisting: false,
 });
@@ -122,4 +150,6 @@ export const {
   useCreatePersonMutation,
   useUpdatePersonMutation,
   useDeletePersonMutation,
+  useGetLocationsQuery,
+  useRecordLocationMutation,
 } = patientApi;

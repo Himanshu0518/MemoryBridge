@@ -67,8 +67,14 @@ def detect_faces(image_bytes: bytes) -> list[dict]:
     # boxes  → shape (N, 4)  or None
     # probs  → shape (N,)    or None
     # crops  → list of N tensors (C, 160, 160) or None
-    boxes, probs, landmarks = _detector.detect(pil_img, landmarks=True)
-    crops = _detector(pil_img)  # returns aligned tensor(s) or None
+    try:
+        boxes, probs, landmarks = _detector.detect(pil_img, landmarks=True)
+        crops = _detector(pil_img)  # returns aligned tensor(s) or None
+    except ValueError:
+        # MTCNN raises "torch.cat(): expected a non-empty list of Tensors"
+        # on degenerate images (e.g. smaller than min_face_size or no
+        # candidate boxes) — treat it the same as "no face found".
+        return []
 
     if boxes is None or crops is None:
         return []

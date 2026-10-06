@@ -8,6 +8,7 @@ import { restoreAuth } from "@/store/authSlice";
 import { restoreSession } from "@/store/patientSessionSlice";
 import {
   getStorageItem,
+  setStorageItem,
   STORAGE_KEYS,
 } from "@/lib/storage";
 
@@ -25,6 +26,19 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
             getStorageItem(STORAGE_KEYS.PATIENT_MODE),
             getStorageItem(STORAGE_KEYS.PATIENT_SESSION),
           ]);
+
+        // Patient session token is stored inside the persisted session JSON and
+        // re-applied so API calls made in patient mode use the patient token.
+        if (patientMode === "true" && patientSessionRaw) {
+          try {
+            const parsed = JSON.parse(patientSessionRaw) as { token?: string };
+            if (parsed.token) {
+              await setStorageItem(STORAGE_KEYS.PATIENT_TOKEN, parsed.token);
+            }
+          } catch {
+            // ignore malformed session
+          }
+        }
 
         const userId = userIdRaw ? Number(userIdRaw) : null;
 

@@ -50,5 +50,7 @@ class Patient(Base):
         cascade="all, delete-orphan",
     )
 
+    locations = relationship("Location", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<Patient(name={self.name}, user_id={self.owner_id})>"

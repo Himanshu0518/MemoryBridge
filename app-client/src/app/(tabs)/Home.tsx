@@ -6,7 +6,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowLeftIcon, EyeIcon, AcademicCapIcon, CameraIcon, UserGroupIcon, MapIcon, MicrophoneIcon, SparklesIcon, ChevronRightIcon } from "react-native-heroicons/outline";
+import { ArrowLeftIcon, AcademicCapIcon, CameraIcon, UserGroupIcon, MapIcon, MicrophoneIcon, SparklesIcon, ChevronRightIcon } from "react-native-heroicons/outline";
 import { Text } from "@/components/ui/text";
 import { Blob } from "@/components/ui/blob";
 import { useAppSelector } from "@/store/hooks";
@@ -104,14 +104,14 @@ export default function Home() {
             title: "Transcribe",
             description: "Live conversation notes",
             color: "#10B981",
-            onPress: () => { },
+            onPress: () => router.push("/(tabs)/Transcribe"),
         },
         {
             icon: <MapIcon size={24} color="#F59E0B" strokeWidth={1.75} />,
             title: "Tracking",
             description: "Monitor patient location",
             color: "#F59E0B",
-            onPress: () => { },
+            onPress: () => router.push("/(tabs)/Tracking"),
         },
     ];
 
@@ -144,7 +144,7 @@ export default function Home() {
                                 Hello, {firstName} 👋
                             </Text>
                             <Text className="text-muted-foreground text-sm mt-0.5">
-                                Here's your caregiver overview
+                                Here’s your caregiver overview
                             </Text>
                         </View>
 

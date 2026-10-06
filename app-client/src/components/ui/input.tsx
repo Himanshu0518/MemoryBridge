@@ -3,7 +3,6 @@ import {
   View,
   TextInput,
   TextInputProps,
-  TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import { Text } from "@/components/ui/text";

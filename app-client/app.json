@@ -33,7 +33,21 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera for face recognition.",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for live transcription.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to record the patient's location for caregiver tracking."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

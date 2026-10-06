@@ -89,7 +89,7 @@ export default function SignIn() {
                             MemoryBridge
                         </Text>
                         <Text className="text-muted-foreground text-base mt-1 text-center px-8">
-                            AI-assisted memory support for Alzheimer's care
+                            AI-assisted memory support for Alzheimer’s care
                         </Text>
                     </View>
 
@@ -182,7 +182,7 @@ export default function SignIn() {
                         {/* Footer */}
                         <View className="flex-row justify-center gap-1.5">
                             <Text className="text-muted-foreground text-sm">
-                                Don't have an account?
+                                Don’t have an account?
                             </Text>
                             <TouchableOpacity onPress={() => router.push("/(auth)/SignUp")}>
                                 <Text className="text-primary font-semibold text-sm">

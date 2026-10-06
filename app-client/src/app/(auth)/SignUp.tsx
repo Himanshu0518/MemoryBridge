@@ -9,7 +9,7 @@ import {
     StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { EnvelopeIcon, LockClosedIcon, EyeIcon, AcademicCapIcon } from "react-native-heroicons/outline";
+import { EnvelopeIcon, EyeIcon, AcademicCapIcon } from "react-native-heroicons/outline";
 import { useSignupMutation } from "@/services/userApi";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";

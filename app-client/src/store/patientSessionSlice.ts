@@ -26,6 +26,7 @@ const persistSession = (s: PatientSession) => {
 const clearSessionStorage = () => {
   removeStorageItem(STORAGE_KEYS.PATIENT_MODE);
   removeStorageItem(STORAGE_KEYS.PATIENT_SESSION);
+  removeStorageItem(STORAGE_KEYS.PATIENT_TOKEN);
 };
 
 export const patientSessionSlice = createSlice({
