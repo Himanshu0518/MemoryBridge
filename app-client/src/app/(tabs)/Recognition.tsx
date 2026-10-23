@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Image,
     ScrollView,
+    Platform,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -27,9 +28,11 @@ import type { MatchFaceData } from "@/types";
 // ─── Match Result UI ──────────────────────────────────────────────────────────
 function MatchResult({
     result,
+    patientId,
     onRetry,
 }: {
     result: { success: boolean; message: string; data?: MatchFaceData };
+    patientId: number;
     onRetry: () => void;
 }) {
     const data = result.data;
@@ -110,25 +113,47 @@ function MatchResult({
     }
 
     // Unknown
+    const router = useRouter();
     return (
         <View className="items-center gap-4 rounded-2xl border border-border bg-white px-6 py-8">
-            <View className="h-14 w-14 items-center justify-center rounded-full bg-muted">
-                <UserIcon size={28} color="#6B7897" strokeWidth={1.75} />
+            <View className="relative">
+                {data?.image_url ? (
+                    <Image
+                        source={{ uri: data.image_url.startsWith("http") ? data.image_url : `${API_BASE}${data.image_url}` }}
+                        className="h-16 w-16 rounded-full"
+                        style={{ resizeMode: "cover" }}
+                    />
+                ) : (
+                    <View className="h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
+                        <UserIcon size={28} color="#D97706" strokeWidth={1.75} />
+                    </View>
+                )}
             </View>
             <View>
-                <Text className="font-semibold text-foreground">Person not recognised</Text>
+                <Text className="text-center font-semibold text-foreground">Person not recognised</Text>
                 <Text className="mt-1 text-center text-sm text-muted-foreground">
                     This face has been saved as an unknown person. You can label them from the patient
                     profile.
                 </Text>
             </View>
-            <TouchableOpacity
-                onPress={onRetry}
-                className="flex-row items-center gap-1.5 rounded-xl border border-border px-5 py-2.5"
-            >
-                <ViewfinderCircleIcon size={16} color="#0C0F1A" strokeWidth={2} />
-                <Text className="text-sm font-semibold text-foreground">Try again</Text>
-            </TouchableOpacity>
+            <View className="w-full flex-row gap-2">
+                {patientId ? (
+                    <TouchableOpacity
+                        onPress={() => router.push(`/(tabs)/PatientDetail?patientId=${patientId}`)}
+                        className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5"
+                    >
+                        <UserIcon size={16} color="#FFFFFF" strokeWidth={2} />
+                        <Text className="text-sm font-semibold text-white">Label in Profile</Text>
+                    </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                    onPress={onRetry}
+                    className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-border py-2.5"
+                >
+                    <ViewfinderCircleIcon size={16} color="#0C0F1A" strokeWidth={2} />
+                    <Text className="text-sm font-semibold text-foreground">Scan again</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 }
@@ -158,12 +183,16 @@ function CameraScanner({
                 exif: false,
             });
             if (!photo?.uri) throw new Error("capture failed");
-            // RN FormData file shape
-            const file = {
+            let file: any = {
                 uri: photo.uri,
                 name: "capture.jpg",
                 type: "image/jpeg",
-            } as unknown as File;
+            };
+            if (Platform.OS === "web" && photo.uri) {
+                const res = await fetch(photo.uri);
+                const blob = await res.blob();
+                file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+            }
             const res = await matchFace({ patientId, file }).unwrap();
             onResult(res as { success: boolean; message: string; data?: MatchFaceData });
         } catch {
@@ -330,7 +359,9 @@ export default function Recognition() {
     const router = useRouter();
     const params = useLocalSearchParams<{ patientId?: string }>();
     const pid = Number(params.patientId);
-    const { data: patientData, isLoading } = useGetPatientQuery(pid);
+    const { data: patientData, isLoading } = useGetPatientQuery(pid, {
+        skip: !pid || isNaN(pid),
+    });
     const patient = patientData?.data;
 
     const [result, setResult] = useState<{
@@ -372,7 +403,7 @@ export default function Recognition() {
                 <View className="gap-5 px-6">
                     {/* Result or Scanner */}
                     {result ? (
-                        <MatchResult result={result} onRetry={handleRetry} />
+                        <MatchResult result={result} patientId={pid} onRetry={handleRetry} />
                     ) : (
                         <CameraScanner patientId={pid} onResult={handleResult} />
                     )}

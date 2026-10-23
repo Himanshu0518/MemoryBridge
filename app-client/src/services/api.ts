@@ -39,7 +39,7 @@ export const getBaseUrl = (): string => {
     }
     return envUrl;
   }
-  if (envUrl) return envUrl;
+  if (envUrl && !envUrl.includes("10.0.2.2")) return envUrl;
   // A physical device has no `localhost` — it must reach the dev machine via
   // its LAN IP, which Expo reports as the dev server's hostUri.
   const devHost = getDevServerHost();
@@ -47,6 +47,7 @@ export const getBaseUrl = (): string => {
     console.log(`[API] Using dev server host: http://${devHost}:8000`);
     return `http://${devHost}:8000`;
   }
+  if (envUrl) return envUrl;
   const fallback =
     Platform.OS === "android"
       ? // Android emulator reaches the host machine through the 10.0.2.2 alias

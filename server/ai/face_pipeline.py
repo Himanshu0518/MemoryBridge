@@ -34,64 +34,73 @@ _detector = MTCNN(
 _embedder = InceptionResnetV1(pretrained="vggface2").eval().to(DEVICE)
 
 
+import io
+from PIL import Image, ImageOps
+
 # ── public helpers ─────────────────────────────────────────────────────────────
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
     """
-    Convert raw image bytes (from an HTTP upload) into an OpenCV BGR array.
+    Convert raw image bytes (from an HTTP upload) into an OpenCV BGR array,
+    preserving correct EXIF orientation.
     """
-    arr = np.frombuffer(image_bytes, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if img is None:
-        raise ValueError("Could not decode image — make sure it is a valid JPEG/PNG.")
-    return img
+    pil_img = load_image_rgb(image_bytes)
+    rgb = np.array(pil_img)
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+
+def load_image_rgb(image_bytes: bytes) -> Image.Image:
+    """
+    Load raw image bytes into a PIL Image with correct EXIF orientation.
+    """
+    try:
+        pil_img = Image.open(io.BytesIO(image_bytes))
+        pil_img = ImageOps.exif_transpose(pil_img)
+        return pil_img.convert("RGB")
+    except Exception as e:
+        raise ValueError("Could not decode image — make sure it is a valid JPEG/PNG.") from e
 
 
 def detect_faces(image_bytes: bytes) -> list[dict]:
     """
     Stage 1: Detect all faces in an image.
+    Supports EXIF-oriented and multi-angle smartphone photos.
 
     Returns a list of dicts, one per face:
         {
             "box":        [x1, y1, x2, y2],   # pixel coordinates
             "confidence": float,               # MTCNN detection confidence
-            "face_crop":  PIL.Image,           # aligned 160×160 crop (for embedding)
+            "face_crop":  torch.Tensor,        # aligned 160×160 crop (for embedding)
         }
 
     Returns an empty list when no face is found.
     """
-    bgr = decode_image(image_bytes)
-    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    pil_img = Image.fromarray(rgb)
+    pil_img = load_image_rgb(image_bytes)
 
-    # boxes  → shape (N, 4)  or None
-    # probs  → shape (N,)    or None
-    # crops  → list of N tensors (C, 160, 160) or None
-    try:
-        boxes, probs, landmarks = _detector.detect(pil_img, landmarks=True)
-        crops = _detector(pil_img)  # returns aligned tensor(s) or None
-    except ValueError:
-        # MTCNN raises "torch.cat(): expected a non-empty list of Tensors"
-        # on degenerate images (e.g. smaller than min_face_size or no
-        # candidate boxes) — treat it the same as "no face found".
-        return []
+    # Try natural/EXIF orientation first; fallback to rotations if not found
+    for angle in [0, 90, 270, 180]:
+        test_img = pil_img if angle == 0 else pil_img.rotate(angle, expand=True)
 
-    if boxes is None or crops is None:
-        return []
+        try:
+            boxes, probs = _detector.detect(test_img)
+            crops = _detector(test_img)
+        except Exception:
+            continue
 
-    # crops may be a single tensor (1 face) — normalise to list
-    if isinstance(crops, torch.Tensor) and crops.ndim == 3:
-        crops = crops.unsqueeze(0)
+        if boxes is not None and crops is not None and len(boxes) > 0:
+            if isinstance(crops, torch.Tensor) and crops.ndim == 3:
+                crops = crops.unsqueeze(0)
 
-    results = []
-    for i, (box, prob) in enumerate(zip(boxes, probs)):
-        results.append({
-            "box":        [int(v) for v in box],
-            "confidence": float(prob),
-            "face_crop":  crops[i],   # tensor ready for the embedder
-        })
+            results = []
+            for i, (box, prob) in enumerate(zip(boxes, probs)):
+                results.append({
+                    "box":        [int(v) for v in box],
+                    "confidence": float(prob) if prob is not None else 1.0,
+                    "face_crop":  crops[i],
+                })
+            return results
 
-    return results
+    return []
 
 
 def get_embedding(face_crop: torch.Tensor) -> list[float]:

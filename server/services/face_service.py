@@ -58,6 +58,10 @@ def addPerson(
     store their embeddings, and return both the person and the embeddings.
     Returns (person, list_of_face_embeddings).
     """
+    faces = extract_embeddings(image_bytes)
+    if not faces:
+        raise ValueError("No face detected in the uploaded image. Please ensure the photo shows a clear, well-lit face.")
+
     person = Person(
         patient_id=patient_id,
         name=name,
@@ -66,11 +70,23 @@ def addPerson(
         image_url=image_url,
     )
     db.add(person)
+    db.flush()
+
+    created = []
+    for face in faces:
+        record = FaceEmbedding(
+            person_id=person.id,
+            embedding=face["embedding"],
+        )
+        db.add(record)
+        created.append(record)
+
     db.commit()
     db.refresh(person)
+    for r in created:
+        db.refresh(r)
 
-    embeddings = store_face_embeddings_for_person(db, person.id, image_bytes)
-    return person, embeddings
+    return person, created
 
 
 def store_face_embeddings_for_person(
