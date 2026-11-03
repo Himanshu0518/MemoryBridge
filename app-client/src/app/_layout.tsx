@@ -2,6 +2,7 @@ import "@/global.css";
 import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { Provider } from "react-redux";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { store } from "@/store";
 import { useAppDispatch } from "@/store/hooks";
 import { restoreAuth } from "@/store/authSlice";
@@ -80,10 +81,12 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   return (
-    <Provider store={store}>
-      <AuthInitializer>
-        <Stack screenOptions={{ headerShown: false }} />
-      </AuthInitializer>
-    </Provider>
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <AuthInitializer>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthInitializer>
+      </Provider>
+    </SafeAreaProvider>
   );
 }

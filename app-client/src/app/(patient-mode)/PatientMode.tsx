@@ -9,7 +9,9 @@ import {
     KeyboardAvoidingView,
     Platform,
     TextInput,
+    Modal,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import * as Speech from "expo-speech";
@@ -32,11 +34,16 @@ import {
     BellIcon,
     HeartIcon,
     ArrowLeftIcon,
+    ArrowRightOnRectangleIcon,
     LockClosedIcon,
+    TrashIcon,
 } from "react-native-heroicons/outline";
 import { Text } from "@/components/ui/text";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectPatientSession } from "@/store/selectors";
+import { sessionClosed } from "@/store/patientSessionSlice";
+import { clearAuth } from "@/store/authSlice";
+import { clearAllAppStorage } from "@/lib/storage";
 import {
     useMatchFaceMutation,
     useSuggestIdentityMutation,
@@ -172,13 +179,13 @@ function SuggestIdentityForm({
     }
 
     return (
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 12, gap: 12 }}>
-            <View className="items-center gap-2">
-                <View className="h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                    <UserIcon size={28} color="#6B7897" strokeWidth={1.75} />
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 12, gap: 10 }}>
+            <View className="items-center gap-1.5">
+                <View className="h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                    <UserIcon size={24} color="#6B7897" strokeWidth={1.75} />
                 </View>
                 <Text className="text-base font-bold text-foreground">Not recognised</Text>
-                <Text className="text-center text-sm text-muted-foreground">
+                <Text className="text-center text-xs text-muted-foreground" numberOfLines={2}>
                     Do you know this person? Tell us who they are.
                 </Text>
             </View>
@@ -203,14 +210,16 @@ function SuggestIdentityForm({
                     <TouchableOpacity
                         onPress={handleSubmit}
                         disabled={isLoading || !name.trim() || !relation.trim()}
-                        className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-foreground py-2.5 disabled:opacity-40"
+                        className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-foreground px-2 py-2.5 disabled:opacity-40"
                     >
                         {isLoading ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                         ) : (
                             <PaperAirplaneIcon size={14} color="#FFFFFF" strokeWidth={2} />
                         )}
-                        <Text className="text-sm font-semibold text-white">Send for verification</Text>
+                        <Text className="text-xs font-semibold text-white" numberOfLines={1}>
+                            Send for verification
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         onPress={onRetry}
@@ -221,10 +230,10 @@ function SuggestIdentityForm({
                 </View>
                 <TouchableOpacity
                     onPress={onContinue}
-                    className="w-full flex-row items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 py-2.5"
+                    className="w-full flex-row items-center justify-center gap-2 rounded-xl border border-border bg-muted/30 px-2 py-2.5"
                 >
                     <ChatBubbleLeftRightIcon size={14} color="#6B7897" strokeWidth={2} />
-                    <Text className="text-sm font-semibold text-muted-foreground">
+                    <Text className="text-xs font-semibold text-muted-foreground" numberOfLines={1}>
                         Skip & start conversation
                     </Text>
                 </TouchableOpacity>
@@ -296,7 +305,7 @@ function RecognitionCard({
                         <Text className="mb-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-600">
                             Recognised
                         </Text>
-                        <Text className="text-3xl font-bold text-foreground">{d.name}</Text>
+                        <Text className="text-center text-2xl font-bold text-foreground" numberOfLines={2} ellipsizeMode="tail">{d.name}</Text>
                         <View
                             className="mt-1.5 rounded-full px-3 py-0.5"
                             style={{ backgroundColor: RELATION_COLORS[(d.relation ?? "").toLowerCase()] ?? "#F1F5F9" }}
@@ -377,52 +386,73 @@ function VisitorNotificationCard({
     imageUrlProp?: string;
     onDismiss: () => void;
 }) {
+    const insets = useSafeAreaInsets();
     return (
-        <View className="absolute inset-0 z-50 items-center justify-center bg-black/50 p-4">
+        <Modal transparent animationType="fade" visible onRequestClose={onDismiss} statusBarTranslucent>
             <View
-                className="w-full max-w-sm overflow-hidden rounded-3xl border-2 bg-white"
-                style={{ borderColor: "#10B98166" }}
+                style={{
+                    flex: 1,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: 16,
+                    paddingTop: Math.max(insets.top, 16) + 16,
+                    paddingBottom: Math.max(insets.bottom, 16) + 16,
+                }}
             >
                 <View
-                    className="items-center gap-4 px-6 pb-6 pt-8"
-                    style={{ backgroundColor: "#ECFDF5" }}
+                    className="w-full max-w-sm overflow-hidden rounded-3xl border-2 bg-white"
+                    style={{ borderColor: "#10B98166" }}
                 >
-                    <View className="relative">
-                        {imageUrlProp ? (
-                            <Image
-                                source={{ uri: imageUrl(imageUrlProp)! }}
-                                className="h-28 w-28 rounded-full"
-                                style={{ resizeMode: "cover" }}
-                            />
-                        ) : (
-                            <View className="h-28 w-28 items-center justify-center rounded-full bg-emerald-500/15">
-                                <HeartIcon size={48} color="#059669" strokeWidth={1.5} />
-                            </View>
-                        )}
-                        <View className="absolute -bottom-1 -right-1 h-8 w-8 items-center justify-center rounded-full bg-emerald-500">
-                            <BellIcon size={16} color="#FFFFFF" strokeWidth={2} />
-                        </View>
-                    </View>
-                    <View>
-                        <Text className="mb-1 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">
-                            Someone is here to visit you!
-                        </Text>
-                        <Text className="text-center text-3xl font-bold text-foreground">{name}</Text>
-                        <View className="mt-2 rounded-full bg-emerald-500/15 px-4 py-1 self-center">
-                            <Text className="text-sm font-semibold capitalize text-emerald-700">{relation}</Text>
-                        </View>
-                    </View>
-                </View>
-                <View className="px-6 pb-6 pt-4">
-                    <TouchableOpacity
-                        onPress={onDismiss}
-                        className="w-full rounded-2xl bg-foreground py-3"
+                    <View
+                        className="items-center gap-3 px-6 pb-5 pt-6"
+                        style={{ backgroundColor: "#ECFDF5" }}
                     >
-                        <Text className="text-center text-sm font-bold text-white">Great, thank you!</Text>
-                    </TouchableOpacity>
+                        <View className="relative">
+                            {imageUrlProp ? (
+                                <Image
+                                    source={{ uri: imageUrl(imageUrlProp)! }}
+                                    className="h-24 w-24 rounded-full"
+                                    style={{ resizeMode: "cover" }}
+                                />
+                            ) : (
+                                <View className="h-24 w-24 items-center justify-center rounded-full bg-emerald-500/15">
+                                    <HeartIcon size={40} color="#059669" strokeWidth={1.5} />
+                                </View>
+                            )}
+                            <View className="absolute -bottom-1 -right-1 h-7 w-7 items-center justify-center rounded-full bg-emerald-500">
+                                <BellIcon size={14} color="#FFFFFF" strokeWidth={2} />
+                            </View>
+                        </View>
+                        <View className="items-center">
+                            <Text className="mb-1 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600">
+                                Someone is here to visit you!
+                            </Text>
+                            <Text
+                                className="text-center text-2xl font-bold text-foreground"
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                            >
+                                {name}
+                            </Text>
+                            <View className="mt-1.5 self-center rounded-full bg-emerald-500/15 px-3 py-0.5">
+                                <Text className="text-xs font-semibold capitalize text-emerald-700" numberOfLines={1}>
+                                    {relation}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                    <View className="px-6 pb-5 pt-3">
+                        <TouchableOpacity
+                            onPress={onDismiss}
+                            className="w-full rounded-2xl bg-foreground py-3"
+                        >
+                            <Text className="text-center text-sm font-bold text-white">Great, thank you!</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
-        </View>
+        </Modal>
     );
 }
 
@@ -525,23 +555,25 @@ function PersonHistoryPanel({
                                         onPress={() => setExpandedId(isOpen ? null : conv.id)}
                                         className="flex-row items-center justify-between px-4 py-3"
                                     >
-                                        <View className="min-w-0 flex-1 flex-row items-center gap-2.5">
+                                        <View className="min-w-0 flex-1 flex-row items-center gap-2">
                                             <ClockIcon size={14} color="#6B7897" strokeWidth={2} />
-                                            <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={1}>
+                                            <Text className="flex-1 text-xs font-medium text-foreground" numberOfLines={1} ellipsizeMode="tail">
                                                 {formatDate(conv.started_at)}
                                             </Text>
                                             {conv.summary && (
-                                                <View className="rounded-full bg-foreground/10 px-2 py-0.5">
+                                                <View className="shrink-0 rounded-full bg-foreground/10 px-2 py-0.5">
                                                     <Text className="text-[10px] font-medium text-muted-foreground">
                                                         Summary
                                                     </Text>
                                                 </View>
                                             )}
-                                            {isOpen ? (
-                                                <ChevronUpIcon size={14} color="#6B7897" strokeWidth={2} />
-                                            ) : (
-                                                <ChevronDownIcon size={14} color="#6B7897" strokeWidth={2} />
-                                            )}
+                                            <View className="shrink-0">
+                                                {isOpen ? (
+                                                    <ChevronUpIcon size={14} color="#6B7897" strokeWidth={2} />
+                                                ) : (
+                                                    <ChevronDownIcon size={14} color="#6B7897" strokeWidth={2} />
+                                                )}
+                                            </View>
                                         </View>
                                     </TouchableOpacity>
                                     {isOpen && (
@@ -617,7 +649,12 @@ function CameraPanel({
                 exif: false,
             });
             if (!photo?.uri) throw new Error("capture failed");
-            const file = { uri: photo.uri, name: "cap.jpg", type: "image/jpeg" } as unknown as File;
+            let file: any = { uri: photo.uri, name: "cap.jpg", type: "image/jpeg" };
+            if (Platform.OS === "web" && photo.uri) {
+                const res = await fetch(photo.uri);
+                const blob = await res.blob();
+                file = new File([blob], "cap.jpg", { type: "image/jpeg" });
+            }
             const res = await matchFace({ patientId, file }).unwrap();
             const r = res as { success: boolean; data?: MatchFaceData };
             setResult(r);
@@ -877,6 +914,8 @@ function TranscriptionPanel({
 function LogoutGuardModal({ onCancel }: { onCancel: () => void }) {
     const session = useAppSelector(selectPatientSession);
     const router = useRouter();
+    const insets = useSafeAreaInsets();
+    const dispatch = useAppDispatch();
     const [exitSession] = useExitPatientSessionMutation();
     const [verifyCaregiver, { isLoading }] = useVerifyCaregiverMutation();
     const [email, setEmail] = useState("");
@@ -897,77 +936,169 @@ function LogoutGuardModal({ onCancel }: { onCancel: () => void }) {
             } catch {
                 /* cookie-only on web; ignore */
             }
+            dispatch(sessionClosed());
             router.replace("/(tabs)/Patients");
         } catch (err: unknown) {
             setError(extractError(err, "Incorrect credentials. Please try again."));
         }
     };
 
+    const handleForceExit = async () => {
+        try {
+            await exitSession().unwrap();
+        } catch {
+            /* ignore network/cookie errors */
+        }
+        await clearAllAppStorage();
+        dispatch(sessionClosed());
+        router.replace("/(tabs)/Patients");
+    };
+
+    const handleClearCredentialsAndRegister = async () => {
+        try {
+            await exitSession().unwrap();
+        } catch {
+            /* ignore network/cookie errors */
+        }
+        await clearAllAppStorage();
+        dispatch(sessionClosed());
+        dispatch(clearAuth());
+        router.replace("/(auth)/SignUp");
+    };
+
     return (
-        <View className="absolute inset-0 z-[100] items-center justify-center bg-black/60 p-4">
-            <View className="w-full max-w-[360px] overflow-hidden rounded-2xl bg-white" style={styles.modalShadow}>
-                <View className="items-center px-6 pb-5 pt-7">
-                    <View className="mb-4 h-14 w-14 items-center justify-center rounded-2xl bg-foreground">
-                        <LockClosedIcon size={24} color="#FFFFFF" strokeWidth={2} />
-                    </View>
-                    <Text className="text-xl font-bold text-foreground">Caregiver verification</Text>
-                    <Text className="mt-2 px-4 text-center text-sm leading-relaxed text-muted-foreground">
-                        Sign in as the caregiver for{" "}
-                        <Text className="font-semibold text-foreground">{session?.patientName}</Text> to exit
-                        patient mode.
-                    </Text>
-                </View>
-                <View className="gap-3 px-6 pb-7">
-                    {error && (
-                        <View className="flex-row items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-3">
-                            <ExclamationTriangleIcon size={16} color="#DC2626" />
-                            <Text className="flex-1 text-sm text-destructive">{error}</Text>
+        <Modal
+            transparent
+            animationType="fade"
+            visible
+            onRequestClose={onCancel}
+            statusBarTranslucent
+        >
+            <KeyboardAvoidingView
+                style={styles.flex}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: "rgba(0, 0, 0, 0.65)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        padding: 16,
+                        paddingTop: Math.max(insets.top, 16) + 16,
+                        paddingBottom: Math.max(insets.bottom, 16) + 16,
+                    }}
+                >
+                    <ScrollView
+                        contentContainerStyle={{
+                            flexGrow: 1,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: "100%",
+                        }}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View
+                            className="w-full max-w-[360px] overflow-hidden rounded-2xl bg-white"
+                            style={styles.modalShadow}
+                        >
+                            <View className="items-center px-6 pb-4 pt-6">
+                                <View className="mb-3 h-12 w-12 items-center justify-center rounded-2xl bg-foreground">
+                                    <LockClosedIcon size={22} color="#FFFFFF" strokeWidth={2} />
+                                </View>
+                                <Text className="text-xl font-bold text-foreground">Caregiver verification</Text>
+                                <Text className="mt-2 px-2 text-center text-xs leading-relaxed text-muted-foreground">
+                                    Sign in as the caregiver for{" "}
+                                    <Text className="font-semibold text-foreground">{session?.patientName}</Text> to exit
+                                    patient mode.
+                                </Text>
+                            </View>
+                            <View className="gap-3 px-6 pb-6">
+                                {error && (
+                                    <View className="flex-row items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5">
+                                        <ExclamationTriangleIcon size={16} color="#DC2626" />
+                                        <Text className="flex-1 text-xs text-destructive">{error}</Text>
+                                    </View>
+                                )}
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder="Caregiver email"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                />
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder="Password"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry
+                                />
+                                <View className="flex-row gap-2 pt-1">
+                                    <TouchableOpacity
+                                        onPress={onCancel}
+                                        disabled={isLoading}
+                                        className="h-11 flex-1 items-center justify-center rounded-xl border border-border disabled:opacity-50"
+                                    >
+                                        <Text className="text-sm font-semibold text-foreground">Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={handleConfirm}
+                                        disabled={isLoading || !email || !password}
+                                        className="h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-foreground disabled:opacity-40"
+                                    >
+                                        {isLoading ? (
+                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                        ) : (
+                                            <>
+                                                <ArrowRightOnRectangleIcon size={16} color="#FFFFFF" strokeWidth={2} />
+                                                <Text className="text-sm font-semibold text-white">Exit mode</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* ── Demo / Emergency exit & Reset options ── */}
+                                <View className="mt-2 gap-2 border-t border-border pt-3">
+                                    <Text className="text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                        Forgot credentials? (Demo reset)
+                                    </Text>
+                                    <TouchableOpacity
+                                        onPress={handleForceExit}
+                                        className="h-10 w-full flex-row items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2"
+                                    >
+                                        <ArrowPathIcon size={14} color="#D97706" strokeWidth={2} />
+                                        <Text className="text-xs font-semibold text-amber-700" numberOfLines={1}>
+                                            Bypass & Exit to Caregiver Dashboard
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={handleClearCredentialsAndRegister}
+                                        className="h-10 w-full flex-row items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-2"
+                                    >
+                                        <TrashIcon size={14} color="#DC2626" strokeWidth={2} />
+                                        <Text className="text-xs font-semibold text-destructive" numberOfLines={1}>
+                                            Clear Credentials & Create New Caregiver
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
                         </View>
-                    )}
-                    <TextInput
-                        style={styles.textInput}
-                        placeholder="Caregiver email"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                    />
-                    <TextInput
-                        style={styles.textInput}
-                        placeholder="Password"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                    />
-                    <View className="flex-row gap-2 pt-1">
-                        <TouchableOpacity
-                            onPress={onCancel}
-                            disabled={isLoading}
-                            className="h-11 flex-1 items-center justify-center rounded-xl border border-border disabled:opacity-50"
-                        >
-                            <Text className="text-sm font-semibold text-foreground">Cancel</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={handleConfirm}
-                            disabled={isLoading || !email || !password}
-                            className="h-11 flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-foreground disabled:opacity-40"
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <Text className="text-sm font-semibold text-white">Exit mode</Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                 </View>
-            </View>
-        </View>
+            </KeyboardAvoidingView>
+        </Modal>
     );
 }
 
 // ─── Patient home screen ──────────────────────────────────────────────────────
 export default function PatientMode() {
     const session = useAppSelector(selectPatientSession);
+    const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const dispatch = useAppDispatch();
     const [recognisedPersonId, setRecognisedPersonId] = useState<number | null>(null);
     const [recognisedPersonName, setRecognisedPersonName] = useState<string>("");
     const [allowUnknownConversation, setAllowUnknownConversation] = useState(false);
@@ -981,6 +1112,13 @@ export default function PatientMode() {
 
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+    // Auto-redirect if session is closed or wiped
+    useEffect(() => {
+        if (!session) {
+            router.replace("/(auth)/SignIn");
+        }
+    }, [session, router]);
 
     // Initial Voice Greeting (same message as web)
     useEffect(() => {
@@ -1038,6 +1176,17 @@ export default function PatientMode() {
         setAllowUnknownConversation(true);
     }, []);
 
+    const handleEmergencyResetApp = async () => {
+        try {
+            await clearAllAppStorage();
+        } catch (e) {
+            console.warn("[PatientMode] Reset storage error:", e);
+        }
+        dispatch(sessionClosed());
+        dispatch(clearAuth());
+        router.replace("/(auth)/SignUp");
+    };
+
     // All hooks above — keep the early return after every hook call.
     if (!session) {
         return (
@@ -1053,27 +1202,50 @@ export default function PatientMode() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             className="bg-background"
         >
-            {/* ── Top greeting bar ── */}
-            <View className="shrink-0 flex-row items-center gap-3 border-b border-border bg-white px-6 py-4">
-                <View className="h-10 w-10 items-center justify-center rounded-xl bg-foreground">
-                    <CpuChipIcon size={20} color="#FFFFFF" strokeWidth={2} />
+            {/* ── Top greeting bar (Safe area padded & responsive) ── */}
+            <View
+                style={{
+                    paddingTop: Math.max(insets.top, Platform.OS === "android" ? 12 : 16) + 8,
+                    paddingBottom: 12,
+                    paddingHorizontal: 16,
+                }}
+                className="shrink-0 flex-row items-center justify-between border-b border-border bg-white"
+            >
+                {/* Left: Icon & Patient Info */}
+                <View className="min-w-0 flex-1 flex-row items-center gap-3 mr-2">
+                    <View className="h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-foreground">
+                        <CpuChipIcon size={20} color="#FFFFFF" strokeWidth={2} />
+                    </View>
+                    <View className="min-w-0 flex-1">
+                        <View className="flex-row items-center gap-1.5">
+                            <Text className="text-xs font-medium text-muted-foreground" numberOfLines={1}>
+                                {greeting}
+                            </Text>
+                            <View className="flex-row items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5">
+                                <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                <Text className="text-[10px] font-semibold text-emerald-600">Active</Text>
+                            </View>
+                        </View>
+                        <Text
+                            className="text-base font-bold leading-tight text-foreground"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                        >
+                            {session.patientName}
+                        </Text>
+                    </View>
                 </View>
-                <View className="flex-1">
-                    <Text className="text-xs font-medium text-muted-foreground">{greeting}</Text>
-                    <Text className="text-lg font-bold leading-tight text-foreground">
-                        {session.patientName}
-                    </Text>
-                </View>
-                <View className="mr-2 flex-row items-center gap-1.5">
-                    <View className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <Text className="text-xs font-semibold text-emerald-600">Active</Text>
-                </View>
+
+                {/* Right: Exit / Logout Option (Never cut off) */}
                 <TouchableOpacity
                     onPress={() => setShowExitGuard(true)}
-                    className="rounded-full bg-muted p-2.5"
+                    className="shrink-0 flex-row items-center gap-1.5 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2"
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Exit Patient Mode"
+                    accessibilityRole="button"
                 >
-                    <ArrowLeftIcon size={16} color="#6B7897" strokeWidth={2} />
+                    <ArrowRightOnRectangleIcon size={16} color="#DC2626" strokeWidth={2} />
+                    <Text className="text-xs font-bold text-destructive">Exit</Text>
                 </TouchableOpacity>
             </View>
 
@@ -1088,7 +1260,34 @@ export default function PatientMode() {
             )}
 
             {/* ── Main split layout ── */}
-            <ScrollView contentContainerStyle={styles.scrollContent} className="flex-1">
+            <ScrollView
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    { paddingBottom: Math.max(insets.bottom, 16) + 32 },
+                ]}
+                className="flex-1"
+                showsVerticalScrollIndicator={false}
+            >
+                {/* ── Direct Reset App & Clear Credentials banner ── */}
+                <View className="flex-row items-center justify-between rounded-2xl border border-destructive/30 bg-destructive/10 p-3.5">
+                    <View className="min-w-0 flex-1 pr-3">
+                        <Text className="text-xs font-bold text-destructive" numberOfLines={1}>
+                            Demo Reset: Forgot Credentials?
+                        </Text>
+                        <Text className="text-[11px] text-destructive/80" numberOfLines={1}>
+                            Clear caregiver credentials & register new
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={handleEmergencyResetApp}
+                        className="shrink-0 rounded-xl bg-destructive px-3.5 py-2"
+                        accessibilityRole="button"
+                        accessibilityLabel="Reset App & Clear Credentials"
+                    >
+                        <Text className="text-xs font-bold text-white">Reset App</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* ── LEFT: Conversation panel ── */}
                 <View className="flex-row items-center gap-2">
                     <ChatBubbleLeftRightIcon size={16} color="#6B7897" strokeWidth={2} />
@@ -1139,6 +1338,21 @@ export default function PatientMode() {
                         onRecognised={handleRecognised}
                         onContinueAsUnknown={handleContinueAsUnknown}
                     />
+                </View>
+
+                {/* ── Secondary Exit / Logout option at bottom ── */}
+                <View className="pt-2 pb-2">
+                    <TouchableOpacity
+                        onPress={() => setShowExitGuard(true)}
+                        className="flex-row items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-3"
+                        accessibilityRole="button"
+                        accessibilityLabel="Exit Patient Mode"
+                    >
+                        <ArrowRightOnRectangleIcon size={16} color="#6B7897" strokeWidth={2} />
+                        <Text className="text-sm font-semibold text-muted-foreground">
+                            Exit patient mode (Caregiver verification)
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
 

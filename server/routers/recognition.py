@@ -49,6 +49,9 @@ async def store_face(
         )
     except ValueError as e:
         raise ApiError(status_code=400, message=str(e))
+    except Exception as e:
+        logger.exception("Failed to store face: %s", e)
+        raise ApiError(status_code=500, message=f"Failed to register face: {str(e)}")
 
     return StoreFaceResponse(
         success=True,

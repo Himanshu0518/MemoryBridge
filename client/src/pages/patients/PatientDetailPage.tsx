@@ -70,7 +70,9 @@ function AddFaceModal({
       await storeKnownFace({ patientId, name: data.name, relation: data.relation, file }).unwrap();
       onClose();
     } catch (err: unknown) {
-      const msg = (err as { data?: { message?: string } })?.data?.message;
+      const errData = (err as { data?: { message?: string; detail?: string | Array<{ msg?: string }> } })?.data;
+      const detailStr = typeof errData?.detail === "string" ? errData.detail : errData?.detail?.[0]?.msg;
+      const msg = errData?.message ?? detailStr;
       setFileError(msg ?? "Failed to register face. Ensure the photo shows a clear face.");
     }
   };

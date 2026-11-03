@@ -38,6 +38,9 @@ export const recognitionApi = api.injectEndpoints({
           body: form,
         };
       },
+      invalidatesTags: (_result, _err, { patientId }) => [
+        { type: "Person", id: `LIST-${patientId}` },
+      ],
     }),
 
     // ── GET /recognition/known-persons/{patient_id} ──────────────────────────

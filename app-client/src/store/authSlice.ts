@@ -41,6 +41,7 @@ const removeAuth = () => {
   removeStorageItem(STORAGE_KEYS.USER_ID);
   removeStorageItem(STORAGE_KEYS.PATIENT_MODE);
   removeStorageItem(STORAGE_KEYS.PATIENT_SESSION);
+  removeStorageItem(STORAGE_KEYS.PATIENT_TOKEN);
 };
 
 export const authSlice = createSlice({

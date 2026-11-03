@@ -39,6 +39,7 @@ import {
     useGetPersonsQuery,
     useDeletePersonMutation,
     useUpdatePersonMutation,
+    useDeletePatientMutation,
 } from "@/services/patientApi";
 import { useStartPatientSessionMutation } from "@/services/patientSessionApi";
 import { useStoreKnownFaceMutation } from "@/services/recognitionApi";
@@ -54,9 +55,21 @@ function imageUrl(url: string | null | undefined): string | null {
 }
 
 function extractError(err: unknown, fallback: string): string {
-    if (err && typeof err === "object" && "data" in err) {
-        const msg = (err.data as Record<string, unknown>)?.message;
-        if (msg) return String(msg);
+    if (err && typeof err === "object") {
+        // Network / client-side failure (request never reached the server)
+        if ("status" in err && (err as { status: unknown }).status === "FETCH_ERROR") {
+            return `Could not reach the server (${(err as { error?: string }).error ?? "network error"}). Check your connection and API URL.`;
+        }
+        if ("data" in err) {
+            const data = (err as { data: Record<string, unknown> }).data;
+            if (data?.message) return String(data.message);
+            if (typeof data?.detail === "string") return data.detail;
+            if (Array.isArray(data?.detail) && data.detail[0]?.msg) return String(data.detail[0].msg);
+        }
+        // Error thrown before/while building the request (e.g. unsupported FormData part)
+        if ("message" in err && typeof (err as { message: unknown }).message === "string") {
+            return `${fallback} (${(err as { message: string }).message})`;
+        }
     }
     return fallback;
 }
@@ -819,6 +832,8 @@ export default function PatientDetail() {
     const [showAddFace, setShowAddFace] = useState(false);
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [startPatientSession, { isLoading: startingSession }] = useStartPatientSessionMutation();
+    const [deletePatient, { isLoading: deletingPatient }] = useDeletePatientMutation();
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     const handleSwitchToPatient = async () => {
         setSessionError(null);
@@ -827,6 +842,20 @@ export default function PatientDetail() {
             router.replace("/(patient-mode)/PatientMode");
         } catch (err: unknown) {
             setSessionError(extractError(err, "Failed to start patient session. Please try again."));
+        }
+    };
+
+    const handleDeletePatient = async () => {
+        if (!confirmDelete) {
+            setConfirmDelete(true);
+            return;
+        }
+        try {
+            await deletePatient(patientId).unwrap();
+            router.replace("/(tabs)/Patients");
+        } catch (err: unknown) {
+            setSessionError(extractError(err, "Failed to delete patient."));
+            setConfirmDelete(false);
         }
     };
 
@@ -867,7 +896,7 @@ export default function PatientDetail() {
                         <ArrowLeftIcon size={18} color="#6B7897" strokeWidth={2} />
                     </TouchableOpacity>
                     <View className="flex-1">
-                        <Text className="text-2xl font-bold text-foreground">{patient.name}</Text>
+                        <Text className="text-2xl font-bold text-foreground" numberOfLines={1}>{patient.name}</Text>
                         <View className="flex-row items-center gap-2">
                             {patient.age != null && (
                                 <Text className="text-sm text-muted-foreground">{patient.age} years old</Text>
@@ -879,6 +908,32 @@ export default function PatientDetail() {
                             )}
                         </View>
                     </View>
+                    <TouchableOpacity
+                        onPress={handleDeletePatient}
+                        disabled={deletingPatient}
+                        className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 ${
+                            confirmDelete
+                                ? "border-destructive bg-destructive"
+                                : "border-destructive/30 bg-destructive/10"
+                        }`}
+                        accessibilityRole="button"
+                        accessibilityLabel="Delete Patient"
+                    >
+                        {deletingPatient ? (
+                            <ActivityIndicator size="small" color={confirmDelete ? "#FFFFFF" : "#DC2626"} />
+                        ) : (
+                            <>
+                                <TrashIcon size={16} color={confirmDelete ? "#FFFFFF" : "#DC2626"} strokeWidth={1.75} />
+                                <Text
+                                    className={`text-xs font-semibold ${
+                                        confirmDelete ? "text-white" : "text-destructive"
+                                    }`}
+                                >
+                                    {confirmDelete ? "Confirm" : "Delete"}
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
                 </View>
 
                 {/* Session error banner */}
