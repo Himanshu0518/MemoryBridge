@@ -39,7 +39,17 @@ export const getBaseUrl = (): string => {
     }
     return envUrl;
   }
-  if (envUrl && !envUrl.includes("10.0.2.2")) return envUrl;
+  // A loopback URL (localhost / 127.0.0.1 / 0.0.0.0 / ::1) or the 10.0.2.2
+  // emulator alias points at the *device* itself, not this machine — so an
+  // .env value meant for web (e.g. http://localhost:8000) is ignored here and
+  // we fall through to auto-detection below.
+  if (
+    envUrl &&
+    !envUrl.includes("10.0.2.2") &&
+    !LOOPBACK_HOSTS.some((host) => envUrl.includes(host))
+  ) {
+    return envUrl;
+  }
   // A physical device has no `localhost` — it must reach the dev machine via
   // its LAN IP, which Expo reports as the dev server's hostUri.
   const devHost = getDevServerHost();

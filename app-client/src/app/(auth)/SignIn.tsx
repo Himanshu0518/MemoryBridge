@@ -17,15 +17,21 @@ import { Input } from "@/components/ui/input";
 import { Blob } from "@/components/ui/blob";
 
 function extractError(error: unknown): string {
-    if (
-        error &&
-        typeof error === "object" &&
-        "data" in error &&
-        error.data !== null &&
-        typeof error.data === "object" &&
-        "message" in error.data
-    ) {
-        return String((error.data as Record<string, unknown>).message);
+    if (error && typeof error === "object") {
+        if (
+            "data" in error &&
+            error.data !== null &&
+            typeof error.data === "object"
+        ) {
+            const data = error.data as Record<string, unknown>;
+            if ("message" in data) return String(data.message);
+            // FastAPI HTTPException (e.g. "Incorrect email or password")
+            if ("detail" in data) return String(data.detail);
+        }
+        // Request never reached the server (wrong base URL / offline)
+        if ("status" in error && error.status === "FETCH_ERROR") {
+            return "Cannot reach the server. Check your connection and that the API is running.";
+        }
     }
     return "Something went wrong. Please try again.";
 }

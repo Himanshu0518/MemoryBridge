@@ -9,7 +9,7 @@ A project created with FastAPI CLI.
 ```bash
 # Bind 0.0.0.0 so a physical phone on the same Wi-Fi can reach the API
 # (127.0.0.1 only accepts connections from this machine).
-uv run uvicorn main:application --reload --host 0.0.0.0 --port 8000
+  
 
 # Or, with fastapi dev:
 uv run fastapi dev --host 0.0.0.0 --port 8000
